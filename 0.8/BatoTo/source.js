@@ -2968,7 +2968,7 @@ var _Sources = (() => {
     const batoPass = eval(script.match(/const\s+batoPass\s*=\s*(.*?);/)?.[1] ?? "").toString();
     const batoWord = script.match(/const\s+batoWord\s*=\s*"(.*)";/)?.[1] ?? "";
     const imgHttps = script.match(/const\s+imgHttps\s*=\s*(.*?);/)?.[1] ?? "";
-    const imgList = JSON.parse(imgHttps);
+    const imgList = JSON.parse(imgHttps).map((img) => img.replace("https://k", "https://n"));
     const tknList = JSON.parse(CryptoJS.AES.decrypt(batoWord, batoPass).toString(CryptoJS.enc.Utf8));
     const pages = imgList.map((value, index) => `${value}?${tknList[index]}`);
     const chapterDetails = App.createChapterDetails({
@@ -3160,8 +3160,8 @@ var _Sources = (() => {
   // src/BatoTo/BatoTo.ts
   var BATO_DOMAIN = "https://batocomic.org";
   var BatoToInfo = {
-    version: "3.1.4",
-    name: "BatoTo",
+    version: "3.1.5",
+    name: "BatoTo Dev",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
