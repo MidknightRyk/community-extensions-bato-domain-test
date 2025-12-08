@@ -46,7 +46,7 @@ const BATO_DOMAIN = 'https://batocomic.org'
 
 export const BatoToInfo: SourceInfo = {
     version: '3.1.5',
-    name: 'BatoTo',
+    name: 'BatoTo Dev',
     icon: 'icon.png',
     author: 'niclimcy',
     authorWebsite: 'https://github.com/niclimcy',
