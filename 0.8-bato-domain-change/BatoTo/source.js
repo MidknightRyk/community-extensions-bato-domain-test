@@ -3161,7 +3161,7 @@ var _Sources = (() => {
   var BATO_DOMAIN = "https://bato.to";
   var BatoToInfo = {
     version: "3.1.6",
-    name: "BatoTo Dev Test",
+    name: "BatoTo Dev Alt",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
