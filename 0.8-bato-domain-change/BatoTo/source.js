@@ -3158,7 +3158,7 @@ var _Sources = (() => {
   };
 
   // src/BatoTo/BatoTo.ts
-  var BATO_DOMAIN = "https://bato.to/v3x";
+  var BATO_DOMAIN = "https://bato.to";
   var BatoToInfo = {
     version: "3.1.6",
     name: "BatoTo Dev Test",
