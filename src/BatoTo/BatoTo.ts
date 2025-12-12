@@ -36,7 +36,7 @@ import { BTLanguages, Metadata } from "./BatoToHelper";
 
 import { languageSettings, resetSettings } from "./BatoToSettings";
 
-const BATO_DOMAIN = "https://bato.to";
+const BATO_DOMAIN = "https://bato.to/v3x";
 
 export const BatoToInfo: SourceInfo = {
     version: "3.1.6",
