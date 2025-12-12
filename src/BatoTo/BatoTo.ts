@@ -40,7 +40,7 @@ const BATO_DOMAIN = "https://bato.to";
 
 export const BatoToInfo: SourceInfo = {
     version: "3.1.6",
-    name: "BatoTo Dev Test",
+    name: "BatoTo Dev Alt",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
