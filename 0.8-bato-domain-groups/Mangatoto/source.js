@@ -3161,7 +3161,7 @@ var _Sources = (() => {
   var BATO_DOMAIN = "https://mangatoto.com";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "Batoto Mangatoto Mirror",
+    name: "Batoto Mangatoto domain",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
