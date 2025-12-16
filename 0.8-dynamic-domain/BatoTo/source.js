@@ -3247,7 +3247,7 @@ var _Sources = (() => {
   var BATO_DOMAIN_DEFAULT = BTDomains.getDefault();
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain testing",
+    name: "BatoTo Dynamic Domain test2",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
@@ -3265,6 +3265,7 @@ var _Sources = (() => {
   var BatoTo = class _BatoTo {
     constructor(cheerio) {
       this.cheerio = cheerio;
+      this.stateManager = App.createSourceStateManager();
       this.requestManager = App.createRequestManager({
         requestsPerSecond: 4,
         requestTimeout: 15e3,
@@ -3273,7 +3274,7 @@ var _Sources = (() => {
             request.headers = {
               ...request.headers ?? {},
               ...{
-                referer: `${await this.getDomain()}/`,
+                referer: `${BATO_DOMAIN_DEFAULT}/`,
                 "user-agent": await this.requestManager.getDefaultUserAgent()
               }
             };
@@ -3289,36 +3290,25 @@ var _Sources = (() => {
           }
         }
       });
-      this.stateManager = App.createSourceStateManager();
     }
-    async testDomain(url) {
-      const requestManager = App.createRequestManager({
-        requestsPerSecond: 2,
-        requestTimeout: 1e4
-      });
-      try {
-        const response = await requestManager.schedule(
-          App.createRequest({ url, method: "GET" }),
-          1
-        );
-        return response.status === 200;
-      } catch {
-        return false;
-      }
-    }
-    async getDomain() {
-      const domain = await this.stateManager.retrieve("domain") ?? BTDomains.getDefault();
-      if (await this.testDomain(domain)) {
-        return domain;
-      }
+    async networkRequest(path, param) {
       const domains = BTDomains["Domains"];
       for (const domainObj of domains) {
-        if (await this.testDomain(domainObj.url)) {
-          await this.stateManager.store("domain", domainObj.url);
-          return domainObj.url;
+        const domain = domainObj.url;
+        await this.stateManager.store("domain", domain);
+        try {
+          const request = App.createRequest({
+            url: `${domain}${path}`,
+            method: "GET",
+            param
+          });
+          return await this.requestManager.schedule(request, 1);
+        } catch (error) {
+          console.log(`Domain ${domain} failed with error: ${error}`);
+          continue;
         }
       }
-      return BTDomains.getDefault();
+      throw new Error("All domains failed");
     }
     async getSourceMenu() {
       return Promise.resolve(
@@ -3338,41 +3328,25 @@ var _Sources = (() => {
       return `${BATO_DOMAIN_DEFAULT}/series/${mangaId2}`;
     }
     async getMangaDetails(mangaId2) {
-      const request = App.createRequest({
-        url: `${await this.stateManager.retrieve("domain") ?? await this.getDomain()}/series/${mangaId2}`,
-        method: "GET"
-      });
-      const response = await this.requestManager.schedule(request, 1);
+      const response = await this.networkRequest(`/series/${mangaId2}`);
       this.CloudFlareError(response.status);
       const $2 = this.cheerio.load(response.data);
       return parseMangaDetails($2, mangaId2);
     }
     async getChapters(mangaId2) {
-      const request = App.createRequest({
-        url: `${await this.stateManager.retrieve("domain") ?? await this.getDomain()}/series/${mangaId2}`,
-        method: "GET"
-      });
-      const response = await this.requestManager.schedule(request, 1);
+      const response = await this.networkRequest(`/series/${mangaId2}`);
       this.CloudFlareError(response.status);
       const $2 = this.cheerio.load(response.data);
       return parseChapterList($2, mangaId2);
     }
     async getChapterDetails(mangaId2, chapterId2) {
-      const request = App.createRequest({
-        url: `${await this.stateManager.retrieve("domain") ?? await this.getDomain()}/chapter/${chapterId2}`,
-        method: "GET"
-      });
-      const response = await this.requestManager.schedule(request, 1);
+      const response = await this.networkRequest(`/chapter/${chapterId2}`);
       this.CloudFlareError(response.status);
       const $2 = this.cheerio.load(response.data);
       return parseChapterDetails($2, mangaId2, chapterId2);
     }
     async getHomePageSections(sectionCallback) {
-      const request = App.createRequest({
-        url: `${await this.getDomain()}`,
-        method: "GET"
-      });
-      const response = await this.requestManager.schedule(request, 1);
+      const response = await this.networkRequest("/");
       this.CloudFlareError(response.status);
       const $2 = this.cheerio.load(response.data);
       parseHomeSections($2, sectionCallback);
@@ -3395,12 +3369,7 @@ var _Sources = (() => {
       const langHomeFilter = await this.stateManager.retrieve("language_home_filter") ?? false;
       const langs = await this.stateManager.retrieve("languages") ?? BTLanguages.getDefault();
       param += langHomeFilter ? `&langs=${langs.join(",")}` : "";
-      const request = App.createRequest({
-        url: `${await this.getDomain()}/browse`,
-        method: "GET",
-        param
-      });
-      const response = await this.requestManager.schedule(request, 1);
+      const response = await this.networkRequest("/browse", param);
       this.CloudFlareError(response.status);
       const $2 = this.cheerio.load(response.data);
       const manga = parseViewMore($2);
@@ -3412,23 +3381,17 @@ var _Sources = (() => {
     }
     async getSearchResults(query, metadata) {
       const page = metadata?.page ?? 1;
-      let request;
+      let path;
       if (query.title) {
-        request = App.createRequest({
-          url: `${await this.stateManager.retrieve("domain") ?? await this.getDomain()}/search?word=${encodeURI(
-            query.title ?? ""
-          )}&page=${page}`,
-          method: "GET"
-        });
+        path = `/search?word=${encodeURI(
+          query.title ?? ""
+        )}&page=${page}`;
       } else {
-        request = App.createRequest({
-          url: `${await this.stateManager.retrieve("domain") ?? await this.getDomain()}/browse?genres=${query?.includedTags?.map((x) => x.id)[0]}&page=${page}`,
-          method: "GET"
-        });
+        path = `/browse?genres=${query?.includedTags?.map((x) => x.id)[0]}&page=${page}`;
       }
       const langSearchFilter = await this.stateManager.retrieve("language_search_filter") ?? false;
       const langs = await this.stateManager.retrieve("languages") ?? BTLanguages.getDefault();
-      const response = await this.requestManager.schedule(request, 1);
+      const response = await this.networkRequest(path);
       const $2 = this.cheerio.load(response.data);
       const manga = parseSearch($2, langSearchFilter, langs);
       metadata = !isLastPage($2) ? { page: page + 1 } : void 0;
@@ -3441,11 +3404,7 @@ var _Sources = (() => {
       return parseTags();
     }
     async getThumbnailUrl(mangaId2) {
-      const request = App.createRequest({
-        url: `${await this.stateManager.retrieve("domain") ?? await this.getDomain()}/series/${mangaId2}`,
-        method: "GET"
-      });
-      const response = await this.requestManager.schedule(request, 1);
+      const response = await this.networkRequest(`/series/${mangaId2}`);
       this.CloudFlareError(response.status);
       const $2 = this.cheerio.load(response.data);
       return parseThumbnailUrl($2);
@@ -3459,12 +3418,11 @@ Please go to the homepage of <${_BatoTo.name}> and press the cloud icon.`
       }
     }
     async getCloudflareBypassRequestAsync() {
-      const batoDomain = await this.stateManager.retrieve("domain") ?? await this.getDomain();
       return App.createRequest({
-        url: batoDomain,
+        url: await this.stateManager.retrieve("domain") ?? await BTDomains.getDefault(),
         method: "GET",
         headers: {
-          referer: `${batoDomain}/`,
+          referer: `${await this.stateManager.retrieve("domain") ?? await BTDomains.getDefault()}/`,
           "user-agent": await this.requestManager.getDefaultUserAgent()
         }
       });
