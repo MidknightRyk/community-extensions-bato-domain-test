@@ -3244,10 +3244,10 @@ var _Sources = (() => {
   };
 
   // src/BatoTo/BatoTo.ts
-  var BATO_DOMAIN_DEFAULT = BTDomains.getDefault();
+  var BATO_DOMAIN_DEFAULT = "https://xbato.com";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain test3",
+    name: "BatoTo Dynamic Domain test3.5",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
@@ -3314,6 +3314,7 @@ var _Sources = (() => {
             });
             const response = await this.requestManager.schedule(request, 1);
             await this.stateManager.store("domain", domain);
+            console.log(`Domain ${domain} succeeded`);
             return response;
           } catch (error) {
             console.log(`Domain ${domain} failed with error: ${error}`);
