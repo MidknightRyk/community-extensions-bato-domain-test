@@ -3247,7 +3247,7 @@ var _Sources = (() => {
   var BATO_DOMAIN_DEFAULT = BTDomains.getDefault();
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain",
+    name: "BatoTo Dynamic Domain testing",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
@@ -3293,8 +3293,8 @@ var _Sources = (() => {
     }
     async testDomain(url) {
       const requestManager = App.createRequestManager({
-        requestsPerSecond: 4,
-        requestTimeout: 5e3
+        requestsPerSecond: 2,
+        requestTimeout: 1e4
       });
       try {
         const response = await requestManager.schedule(
