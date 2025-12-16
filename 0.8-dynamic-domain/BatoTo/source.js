@@ -3247,7 +3247,7 @@ var _Sources = (() => {
   var BATO_DOMAIN_DEFAULT = BTDomains.getDefault();
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain test2",
+    name: "BatoTo Dynamic Domain test3",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
@@ -3274,7 +3274,7 @@ var _Sources = (() => {
             request.headers = {
               ...request.headers ?? {},
               ...{
-                referer: `${BATO_DOMAIN_DEFAULT}/`,
+                referer: `${await this.stateManager.retrieve("domain") ?? BATO_DOMAIN_DEFAULT}/`,
                 "user-agent": await this.requestManager.getDefaultUserAgent()
               }
             };
@@ -3292,20 +3292,33 @@ var _Sources = (() => {
       });
     }
     async networkRequest(path, param) {
-      const domains = BTDomains["Domains"];
-      for (const domainObj of domains) {
-        const domain = domainObj.url;
-        await this.stateManager.store("domain", domain);
-        try {
-          const request = App.createRequest({
-            url: `${domain}${path}`,
-            method: "GET",
-            param
-          });
-          return await this.requestManager.schedule(request, 1);
-        } catch (error) {
-          console.log(`Domain ${domain} failed with error: ${error}`);
-          continue;
+      try {
+        const domain = await this.stateManager.retrieve("domain") ?? await BTDomains.getDefault();
+        const request = App.createRequest({
+          url: `${domain}${path}`,
+          method: "GET",
+          param
+        });
+        return await this.requestManager.schedule(request, 1);
+      } catch {
+        console.log("Stored domain failed, trying other domains...");
+        const domains = BTDomains["Domains"];
+        for (const domainObj of domains) {
+          const domain = domainObj.url;
+          await this.stateManager.store("domain", domain);
+          try {
+            const request = App.createRequest({
+              url: `${domain}${path}`,
+              method: "GET",
+              param
+            });
+            const response = await this.requestManager.schedule(request, 1);
+            await this.stateManager.store("domain", domain);
+            return response;
+          } catch (error) {
+            console.log(`Domain ${domain} failed with error: ${error}`);
+            continue;
+          }
         }
       }
       throw new Error("All domains failed");
