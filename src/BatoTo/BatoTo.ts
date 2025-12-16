@@ -1,5 +1,3 @@
-import { IncomingMessage,
-    ClientRequest } from 'http'
 import {
     BadgeColor,
     Chapter,
@@ -106,20 +104,20 @@ implements
     stateManager = App.createSourceStateManager();
 
     async testDomain(url: string): Promise<boolean> {
-        return new Promise<boolean>((resolve) => {
-            const protocol = url.startsWith('https') ? require('https') : require('http')
-            const timeout = 5000
-    
-            const req: ClientRequest = protocol.get(url, { timeout }, (res: IncomingMessage) => {
-                resolve(res.statusCode === 200)
-            })
-    
-            req.on('error', () => resolve(false))
-            req.on('timeout', () => {
-                req.destroy()
-                resolve(false)
-            })
+        const requestManager = App.createRequestManager({
+            requestsPerSecond: 4,
+            requestTimeout: 5000
         })
+        
+        try {
+            const response = await requestManager.schedule(
+                App.createRequest({ url, method: 'GET' }),
+                1
+            )
+            return response.status === 200
+        } catch {
+            return false
+        }
     }
 
     async getDomain(): Promise<string> {
