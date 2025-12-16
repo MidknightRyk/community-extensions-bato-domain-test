@@ -3291,6 +3291,35 @@ var _Sources = (() => {
       });
       this.stateManager = App.createSourceStateManager();
     }
+    async testDomain(url) {
+      const requestManager = App.createRequestManager({
+        requestsPerSecond: 4,
+        requestTimeout: 5e3
+      });
+      try {
+        const response = await requestManager.schedule(
+          App.createRequest({ url, method: "GET" }),
+          1
+        );
+        return response.status === 200;
+      } catch {
+        return false;
+      }
+    }
+    async getDomain() {
+      const domain = await this.stateManager.retrieve("domain") ?? BTDomains.getDefault();
+      if (await this.testDomain(domain)) {
+        return domain;
+      }
+      const domains = BTDomains["Domains"];
+      for (const domainObj of domains) {
+        if (await this.testDomain(domainObj.url)) {
+          await this.stateManager.store("domain", domainObj.url);
+          return domainObj.url;
+        }
+      }
+      return BTDomains.getDefault();
+    }
     async getSourceMenu() {
       return Promise.resolve(
         App.createDUISection({
@@ -3420,10 +3449,6 @@ var _Sources = (() => {
       this.CloudFlareError(response.status);
       const $2 = this.cheerio.load(response.data);
       return parseThumbnailUrl($2);
-    }
-    async getDomain() {
-      const domain = await this.stateManager.retrieve("domain") ?? BTDomains.getDefault();
-      return domain;
     }
     CloudFlareError(status) {
       if (status == 503 || status == 403) {
