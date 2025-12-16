@@ -2171,8 +2171,8 @@ var _Sources = (() => {
   // src/Mangatoto/Mangatoto.ts
   var Mangatoto_exports = {};
   __export(Mangatoto_exports, {
-    BatoTo: () => BatoTo,
-    BatoToInfo: () => BatoToInfo
+    Mangatoto: () => Mangatoto,
+    MangatotoInfo: () => MangatotoInfo
   });
   var import_types2 = __toESM(require_lib());
 
@@ -3159,7 +3159,7 @@ var _Sources = (() => {
 
   // src/Mangatoto/Mangatoto.ts
   var BATO_DOMAIN = "https://mangatoto.com";
-  var BatoToInfo = {
+  var MangatotoInfo = {
     version: "3.1.7",
     name: "Batoto Mangatoto domain",
     icon: "icon.png",
@@ -3176,7 +3176,7 @@ var _Sources = (() => {
     ],
     intents: import_types2.SourceIntents.MANGA_CHAPTERS | import_types2.SourceIntents.HOMEPAGE_SECTIONS | import_types2.SourceIntents.SETTINGS_UI | import_types2.SourceIntents.CLOUDFLARE_BYPASS_REQUIRED
   };
-  var BatoTo = class _BatoTo {
+  var Mangatoto = class _Mangatoto {
     constructor(cheerio) {
       this.cheerio = cheerio;
       this.requestManager = App.createRequestManager({
@@ -3338,7 +3338,7 @@ var _Sources = (() => {
       if (status == 503 || status == 403) {
         throw new Error(
           `CLOUDFLARE BYPASS ERROR:
-Please go to the homepage of <${_BatoTo.name}> and press the cloud icon.`
+Please go to the homepage of <${_Mangatoto.name}> and press the cloud icon.`
         );
       }
     }
