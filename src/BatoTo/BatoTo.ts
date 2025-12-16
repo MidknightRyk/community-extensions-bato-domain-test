@@ -73,6 +73,8 @@ implements
 {
     constructor(private cheerio: CheerioAPI) {}
 
+    stateManager = App.createSourceStateManager();
+
     requestManager = App.createRequestManager({
         requestsPerSecond: 4,
         requestTimeout: 15000,
@@ -81,9 +83,9 @@ implements
                 request.headers = {
                     ...(request.headers ?? {}),
                     ...{
-                        referer: `${await this.getDomain()}/`,
+                        referer: `${BATO_DOMAIN_DEFAULT}/`,
                         'user-agent':
-                            await this.requestManager.getDefaultUserAgent()
+                    await this.requestManager.getDefaultUserAgent()
                     }
                 }
                 if (request.url.includes('mangaId=')) {
@@ -99,42 +101,31 @@ implements
                 return response
             }
         }
-    });
+    })
 
-    stateManager = App.createSourceStateManager();
 
-    async testDomain(url: string): Promise<boolean> {
-        const requestManager = App.createRequestManager({
-            requestsPerSecond: 2,
-            requestTimeout: 10000
-        })
-        
-        try {
-            const response = await requestManager.schedule(
-                App.createRequest({ url, method: 'GET' }),
-                1
-            )
-            return response.status === 200
-        } catch {
-            return false
-        }
-    }
-
-    async getDomain(): Promise<string> {
-        const domain: string = await this.stateManager.retrieve('domain') ?? BTDomains.getDefault()
-        
-        if (await this.testDomain(domain)) {
-            return domain
-        }
-        
+    async networkRequest(path:string, param?:string): Promise<Response> {
         const domains = BTDomains['Domains']
+        
         for (const domainObj of domains) {
-            if (await this.testDomain(domainObj.url)) {
-                await this.stateManager.store('domain', domainObj.url)
-                return domainObj.url
+            const domain: string = domainObj.url
+            await this.stateManager.store('domain', domain)
+
+            try {
+                const request = App.createRequest({
+                    url: `${domain}${path}`,
+                    method: 'GET',
+                    param: param
+                })
+    
+                return await this.requestManager.schedule(request, 1)
+            } 
+            catch (error) {
+                console.log(`Domain ${domain} failed with error: ${error}`)
+                continue
             }
         }
-        return BTDomains.getDefault()
+        throw new Error('All domains failed')
     }
 
     async getSourceMenu(): Promise<DUISection> {
@@ -157,24 +148,14 @@ implements
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
-        const request = App.createRequest({
-            url: `${await this.stateManager.retrieve('domain') ?? await this.getDomain()}/series/${mangaId}`,
-            method: 'GET'
-        })
-
-        const response = await this.requestManager.schedule(request, 1)
+        const response = await this.networkRequest(`/series/${mangaId}`)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         return parseMangaDetails($, mangaId)
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
-        const request = App.createRequest({
-            url: `${await this.stateManager.retrieve('domain') ?? await this.getDomain()}/series/${mangaId}`,
-            method: 'GET'
-        })
-
-        const response = await this.requestManager.schedule(request, 1)
+        const response = await this.networkRequest(`/series/${mangaId}`)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         return parseChapterList($, mangaId)
@@ -184,12 +165,7 @@ implements
         mangaId: string,
         chapterId: string
     ): Promise<ChapterDetails> {
-        const request = App.createRequest({
-            url: `${await this.stateManager.retrieve('domain') ?? await this.getDomain()}/chapter/${chapterId}`,
-            method: 'GET'
-        })
-
-        const response = await this.requestManager.schedule(request, 1)
+        const response = await this.networkRequest(`/chapter/${chapterId}`)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         return parseChapterDetails($, mangaId, chapterId)
@@ -198,12 +174,7 @@ implements
     async getHomePageSections(
         sectionCallback: (section: HomeSection) => void
     ): Promise<void> {
-        const request = App.createRequest({
-            url: `${await this.getDomain()}`,
-            method: 'GET'
-        })
-
-        const response = await this.requestManager.schedule(request, 1)
+        const response = await this.networkRequest('/')
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         parseHomeSections($, sectionCallback)
@@ -236,13 +207,7 @@ implements
             BTLanguages.getDefault()
         param += langHomeFilter ? `&langs=${langs.join(',')}` : ''
 
-        const request = App.createRequest({
-            url: `${await this.getDomain()}/browse`,
-            method: 'GET',
-            param
-        })
-
-        const response = await this.requestManager.schedule(request, 1)
+        const response = await this.networkRequest('/browse', param)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         const manga = parseViewMore($)
@@ -259,24 +224,18 @@ implements
         metadata: Metadata | undefined
     ): Promise<PagedResults> {
         const page: number = metadata?.page ?? 1
-        let request
+        let path
 
         // Regular search
         if (query.title) {
-            request = App.createRequest({
-                url: `${await this.stateManager.retrieve('domain') ?? await this.getDomain()}/search?word=${encodeURI(
-                    query.title ?? ''
-                )}&page=${page}`,
-                method: 'GET'
-            })
+            path = `/search?word=${encodeURI(
+                query.title ?? ''
+            )}&page=${page}`
             // Tag Search
         } else {
-            request = App.createRequest({
-                url: `${await this.stateManager.retrieve('domain') ?? await this.getDomain()}/browse?genres=${
-                    query?.includedTags?.map((x: Tag) => x.id)[0]
-                }&page=${page}`,
-                method: 'GET'
-            })
+            path = `/browse?genres=${
+                query?.includedTags?.map((x: Tag) => x.id)[0]
+            }&page=${page}`
         }
 
         const langSearchFilter: boolean =
@@ -286,7 +245,7 @@ implements
             (await this.stateManager.retrieve('languages')) ??
             BTLanguages.getDefault()
 
-        const response = await this.requestManager.schedule(request, 1)
+        const response = await this.networkRequest(path)
         const $ = this.cheerio.load(response.data as string)
         const manga = parseSearch($, langSearchFilter, langs)
 
@@ -302,12 +261,7 @@ implements
     }
 
     async getThumbnailUrl(mangaId: string): Promise<string> {
-        const request = App.createRequest({
-            url: `${await this.stateManager.retrieve('domain') ?? await this.getDomain()}/series/${mangaId}`,
-            method: 'GET'
-        })
-
-        const response = await this.requestManager.schedule(request, 1)
+        const response = await this.networkRequest(`/series/${mangaId}`)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         return parseThumbnailUrl($)
@@ -322,12 +276,11 @@ implements
     }
 
     async getCloudflareBypassRequestAsync(): Promise<Request> {
-        const batoDomain = await this.stateManager.retrieve('domain') ?? await this.getDomain()
         return App.createRequest({
-            url: batoDomain,
+            url: await this.stateManager.retrieve('domain') ?? await BTDomains.getDefault(),
             method: 'GET',
             headers: {
-                referer: `${batoDomain}/`,
+                referer: `${await this.stateManager.retrieve('domain') ?? await BTDomains.getDefault()}/`,
                 'user-agent': await this.requestManager.getDefaultUserAgent()
             }
         })
