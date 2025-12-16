@@ -3246,8 +3246,8 @@ var _Sources = (() => {
   // src/BatoTo/BatoTo.ts
   var BATO_DOMAIN_DEFAULT = BTDomains.getDefault();
   var BatoToInfo = {
-    version: "3.1.6",
-    name: "BatoTo Dev Alt",
+    version: "3.1.7",
+    name: "BatoTo Dynamic Domain",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
