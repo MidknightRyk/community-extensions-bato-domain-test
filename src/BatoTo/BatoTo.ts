@@ -40,11 +40,11 @@ import { languageSettings,
     domainSettings,
     resetSettings } from './BatoToSettings'
 
-const BATO_DOMAIN_DEFAULT = BTDomains.getDefault()
+const BATO_DOMAIN_DEFAULT = 'https://xbato.com'
 
 export const BatoToInfo: SourceInfo = {
     version: '3.1.7',
-    name: 'BatoTo Dynamic Domain test3',
+    name: 'BatoTo Dynamic Domain test3.5',
     icon: 'icon.png',
     author: 'niclimcy',
     authorWebsite: 'https://github.com/niclimcy',
@@ -132,6 +132,7 @@ implements
         
                     const response = await this.requestManager.schedule(request, 1)
                     await this.stateManager.store('domain', domain)
+                    console.log(`Domain ${domain} succeeded`)
                     return response
                 } 
                 catch (error) {
