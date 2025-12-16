@@ -158,7 +158,7 @@ implements
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
         const request = App.createRequest({
-            url: `${await this.getDomain()}/series/${mangaId}`,
+            url: `${await this.stateManager.retrieve('domain') ?? await this.getDomain()}/series/${mangaId}`,
             method: 'GET'
         })
 
@@ -170,7 +170,7 @@ implements
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
         const request = App.createRequest({
-            url: `${await this.getDomain()}/series/${mangaId}`,
+            url: `${await this.stateManager.retrieve('domain') ?? await this.getDomain()}/series/${mangaId}`,
             method: 'GET'
         })
 
@@ -185,7 +185,7 @@ implements
         chapterId: string
     ): Promise<ChapterDetails> {
         const request = App.createRequest({
-            url: `${await this.getDomain()}/chapter/${chapterId}`,
+            url: `${await this.stateManager.retrieve('domain') ?? await this.getDomain()}/chapter/${chapterId}`,
             method: 'GET'
         })
 
@@ -264,7 +264,7 @@ implements
         // Regular search
         if (query.title) {
             request = App.createRequest({
-                url: `${await this.getDomain()}/search?word=${encodeURI(
+                url: `${await this.stateManager.retrieve('domain') ?? await this.getDomain()}/search?word=${encodeURI(
                     query.title ?? ''
                 )}&page=${page}`,
                 method: 'GET'
@@ -272,7 +272,7 @@ implements
             // Tag Search
         } else {
             request = App.createRequest({
-                url: `${await this.getDomain()}/browse?genres=${
+                url: `${await this.stateManager.retrieve('domain') ?? await this.getDomain()}/browse?genres=${
                     query?.includedTags?.map((x: Tag) => x.id)[0]
                 }&page=${page}`,
                 method: 'GET'
@@ -303,7 +303,7 @@ implements
 
     async getThumbnailUrl(mangaId: string): Promise<string> {
         const request = App.createRequest({
-            url: `${await this.getDomain()}/series/${mangaId}`,
+            url: `${await this.stateManager.retrieve('domain') ?? await this.getDomain()}/series/${mangaId}`,
             method: 'GET'
         })
 
@@ -322,7 +322,7 @@ implements
     }
 
     async getCloudflareBypassRequestAsync(): Promise<Request> {
-        const batoDomain = await this.getDomain()
+        const batoDomain = await this.stateManager.retrieve('domain') ?? await this.getDomain()
         return App.createRequest({
             url: batoDomain,
             method: 'GET',
