@@ -706,3 +706,54 @@ export const BTLanguages = new BTLanguagesClass()
 export interface Metadata {
     page: number;
 }
+
+interface BTDomain {
+    name: string;
+    url: string;
+    default?: boolean;
+}
+
+class BTDomainsClass {
+    Domains: BTDomain[] = [
+        { name: 'bato.to', url: 'https://bato.to', default: true },
+        { name: 'wto.to', url: 'https://wto.to' },
+        { name: 'mto.to', url: 'https://mto.to' },
+        { name: 'hto.to', url: 'https://hto.to' },
+        { name: 'jto.to', url: 'https://jto.to' },
+        { name: 'fto.to', url: 'https://fto.to' },
+        { name: 'dto.to', url: 'https://dto.to' },
+        { name: 'mangatoto.org', url: 'https://mangatoto.org' },
+        { name: 'mangatoto.net', url: 'https://mangatoto.net' },
+        { name: 'mangatoto.com', url: 'https://mangatoto.com' },
+        { name: 'comiko.org', url: 'https://comiko.org' },
+        { name: 'comiko.net', url: 'https://comiko.net' },
+        { name: 'battwo.com', url: 'https://battwo.com' },
+        { name: 'batotwo.com', url: 'https://batotwo.com' },
+        { name: 'batotoo.com', url: 'https://batotoo.com' },
+        { name: 'batocomic.org', url: 'https://batocomic.org' },
+        { name: 'batocomic.net', url: 'https://batocomic.net' },
+        { name: 'batocomic.com', url: 'https://batocomic.com' },
+        { name: 'readtoto.org', url: 'https://readtoto.org' },
+        { name: 'readtoto.net', url: 'https://readtoto.net' },
+        { name: 'readtoto.com', url: 'https://readtoto.com' },
+        { name: 'zbato.org', url: 'https://zbato.org' },
+        { name: 'zbato.net', url: 'https://zbato.net' },
+        { name: 'zbato.com', url: 'https://zbato.com' },
+        { name: 'xbato.org', url: 'https://xbato.org' },
+        { name: 'xbato.net', url: 'https://xbato.net' },
+        { name: 'xbato.com', url: 'https://xbato.com' }
+    ]
+
+    getBTDomainList(): string[] {
+        return this.Domains.map(Domain => Domain.url)
+    }
+    getName(url: string): string {
+        return this.Domains.filter(Domain => Domain.url == url)[0]?.name ?? 'Unknown'
+    }
+
+    getDefault(): string {
+        return this.Domains.filter(Domain => Domain.default).map(Domain => Domain.url)[0] ?? 'https://bato.to'
+    }
+}
+
+export const BTDomains = new BTDomainsClass()

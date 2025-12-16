@@ -4,23 +4,32 @@ import {
     SourceStateManager
 } from '@paperback/types'
 
-import {
-    BTLanguages
-} from './BatoToHelper'
+import { BTLanguages,
+    BTDomains } from './BatoToHelper'
 
-const getLanguages = async (stateManager: SourceStateManager): Promise<string[]> => {
-    return (await stateManager.retrieve('languages') ?? BTLanguages.getDefault())
+const getLanguages = async (
+    stateManager: SourceStateManager
+): Promise<string[]> => {
+    return (
+        (await stateManager.retrieve('languages')) ?? BTLanguages.getDefault()
+    )
 }
 
-const getLanguageHomeFilter = async (stateManager: SourceStateManager): Promise<boolean> => {
-    return (await stateManager.retrieve('language_home_filter') ?? false)
+const getLanguageHomeFilter = async (
+    stateManager: SourceStateManager
+): Promise<boolean> => {
+    return (await stateManager.retrieve('language_home_filter')) ?? false
 }
 
-const getLanguageSearchFilter = async (stateManager: SourceStateManager): Promise<boolean> => {
-    return (await stateManager.retrieve('language_search_filter') ?? false)
+const getLanguageSearchFilter = async (
+    stateManager: SourceStateManager
+): Promise<boolean> => {
+    return (await stateManager.retrieve('language_search_filter')) ?? false
 }
 
-export const languageSettings = (stateManager: SourceStateManager): DUINavigationButton => {
+export const languageSettings = (
+    stateManager: SourceStateManager
+): DUINavigationButton => {
     return App.createDUINavigationButton({
         id: 'language_settings',
         label: 'Language Settings',
@@ -35,10 +44,15 @@ export const languageSettings = (stateManager: SourceStateManager): DUINavigatio
                             id: 'languages',
                             label: 'Languages',
                             options: BTLanguages.getBTCodeList(),
-                            labelResolver: async (option) => BTLanguages.getName(option),
+                            labelResolver: async (option) =>
+                                BTLanguages.getName(option),
                             value: App.createDUIBinding({
                                 get: () => getLanguages(stateManager),
-                                set: async (newValue) => await stateManager.store('languages', newValue)
+                                set: async (newValue) =>
+                                    await stateManager.store(
+                                        'languages',
+                                        newValue
+                                    )
                             }),
                             allowsMultiselect: true
                         }),
@@ -47,16 +61,67 @@ export const languageSettings = (stateManager: SourceStateManager): DUINavigatio
                             label: 'Filter Homepage Language',
                             value: App.createDUIBinding({
                                 get: () => getLanguageHomeFilter(stateManager),
-                                set: async (newValue) => await stateManager.store('language_home_filter', newValue)
+                                set: async (newValue) =>
+                                    await stateManager.store(
+                                        'language_home_filter',
+                                        newValue
+                                    )
                             })
                         }),
                         App.createDUISwitch({
                             id: 'language_search_filter',
                             label: 'Filter Search Language',
                             value: App.createDUIBinding({
-                                get: () => getLanguageSearchFilter(stateManager),
-                                set: async (newValue) => await stateManager.store('language_search_filter', newValue)
+                                get: () =>
+                                    getLanguageSearchFilter(stateManager),
+                                set: async (newValue) =>
+                                    await stateManager.store(
+                                        'language_search_filter',
+                                        newValue
+                                    )
                             })
+                        })
+                    ]
+                })
+            ]
+        })
+    })
+}
+
+const getDomains = async (
+    stateManager: SourceStateManager
+): Promise<string[]> => {
+    return (
+        (await stateManager.retrieve('domains')) ?? BTDomains.getDefault()
+    )
+}
+
+export const domainSettings = (stateManager: SourceStateManager): DUINavigationButton => {
+    return App.createDUINavigationButton({
+        id: 'domain_settings',
+        label: 'Domain Settings',
+        form: App.createDUIForm({
+            sections: async () => [
+                App.createDUISection({
+                    id: 'content',
+                    footer: 'Use this to change the source domain to one that is not down.',
+                    isHidden: false,
+                    rows: async () => [
+                        App.createDUISelect({
+                            id: 'domains',
+                            label: 'Domains',
+                            options: BTDomains.getBTDomainList(),
+                            labelResolver: async (option) =>
+                                BTDomains.getName(option),
+                            value: App.createDUIBinding({
+                                get: () => getDomains(stateManager),
+                                set: async (newValue) =>
+                                    await stateManager.store(
+                                        'domains',
+                                        newValue
+                                    )
+                            }),
+                            allowsMultiselect: false
                         })
                     ]
                 })
