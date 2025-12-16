@@ -105,8 +105,8 @@ implements
 
     async testDomain(url: string): Promise<boolean> {
         const requestManager = App.createRequestManager({
-            requestsPerSecond: 4,
-            requestTimeout: 5000
+            requestsPerSecond: 2,
+            requestTimeout: 10000
         })
         
         try {
