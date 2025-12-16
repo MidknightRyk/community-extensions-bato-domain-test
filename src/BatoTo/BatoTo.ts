@@ -1,3 +1,5 @@
+import { IncomingMessage,
+    ClientRequest } from 'http'
 import {
     BadgeColor,
     Chapter,
@@ -102,6 +104,40 @@ implements
     });
 
     stateManager = App.createSourceStateManager();
+
+    async testDomain(url: string): Promise<boolean> {
+        return new Promise<boolean>((resolve) => {
+            const protocol = url.startsWith('https') ? require('https') : require('http')
+            const timeout = 5000
+    
+            const req: ClientRequest = protocol.get(url, { timeout }, (res: IncomingMessage) => {
+                resolve(res.statusCode === 200)
+            })
+    
+            req.on('error', () => resolve(false))
+            req.on('timeout', () => {
+                req.destroy()
+                resolve(false)
+            })
+        })
+    }
+
+    async getDomain(): Promise<string> {
+        const domain: string = await this.stateManager.retrieve('domain') ?? BTDomains.getDefault()
+        
+        if (await this.testDomain(domain)) {
+            return domain
+        }
+        
+        const domains = BTDomains['Domains']
+        for (const domainObj of domains) {
+            if (await this.testDomain(domainObj.url)) {
+                await this.stateManager.store('domain', domainObj.url)
+                return domainObj.url
+            }
+        }
+        return BTDomains.getDefault()
+    }
 
     async getSourceMenu(): Promise<DUISection> {
         return Promise.resolve(
@@ -277,11 +313,6 @@ implements
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         return parseThumbnailUrl($)
-    }
-
-    async getDomain(): Promise<string> {
-        const domain: string = await this.stateManager.retrieve('domain') ?? BTDomains.getDefault()
-        return domain
     }
 
     CloudFlareError(status: number): void {
