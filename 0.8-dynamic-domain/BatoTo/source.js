@@ -3339,7 +3339,7 @@ var _Sources = (() => {
     }
     async getMangaDetails(mangaId2) {
       const request = App.createRequest({
-        url: `${await this.getDomain()}/series/${mangaId2}`,
+        url: `${await this.stateManager.retrieve("domain") ?? await this.getDomain()}/series/${mangaId2}`,
         method: "GET"
       });
       const response = await this.requestManager.schedule(request, 1);
@@ -3349,7 +3349,7 @@ var _Sources = (() => {
     }
     async getChapters(mangaId2) {
       const request = App.createRequest({
-        url: `${await this.getDomain()}/series/${mangaId2}`,
+        url: `${await this.stateManager.retrieve("domain") ?? await this.getDomain()}/series/${mangaId2}`,
         method: "GET"
       });
       const response = await this.requestManager.schedule(request, 1);
@@ -3359,7 +3359,7 @@ var _Sources = (() => {
     }
     async getChapterDetails(mangaId2, chapterId2) {
       const request = App.createRequest({
-        url: `${await this.getDomain()}/chapter/${chapterId2}`,
+        url: `${await this.stateManager.retrieve("domain") ?? await this.getDomain()}/chapter/${chapterId2}`,
         method: "GET"
       });
       const response = await this.requestManager.schedule(request, 1);
@@ -3415,14 +3415,14 @@ var _Sources = (() => {
       let request;
       if (query.title) {
         request = App.createRequest({
-          url: `${await this.getDomain()}/search?word=${encodeURI(
+          url: `${await this.stateManager.retrieve("domain") ?? await this.getDomain()}/search?word=${encodeURI(
             query.title ?? ""
           )}&page=${page}`,
           method: "GET"
         });
       } else {
         request = App.createRequest({
-          url: `${await this.getDomain()}/browse?genres=${query?.includedTags?.map((x) => x.id)[0]}&page=${page}`,
+          url: `${await this.stateManager.retrieve("domain") ?? await this.getDomain()}/browse?genres=${query?.includedTags?.map((x) => x.id)[0]}&page=${page}`,
           method: "GET"
         });
       }
@@ -3442,7 +3442,7 @@ var _Sources = (() => {
     }
     async getThumbnailUrl(mangaId2) {
       const request = App.createRequest({
-        url: `${await this.getDomain()}/series/${mangaId2}`,
+        url: `${await this.stateManager.retrieve("domain") ?? await this.getDomain()}/series/${mangaId2}`,
         method: "GET"
       });
       const response = await this.requestManager.schedule(request, 1);
@@ -3459,7 +3459,7 @@ Please go to the homepage of <${_BatoTo.name}> and press the cloud icon.`
       }
     }
     async getCloudflareBypassRequestAsync() {
-      const batoDomain = await this.getDomain();
+      const batoDomain = await this.stateManager.retrieve("domain") ?? await this.getDomain();
       return App.createRequest({
         url: batoDomain,
         method: "GET",
