@@ -40,11 +40,11 @@ import { languageSettings,
     domainSettings,
     resetSettings } from './BatoToSettings'
 
-const BATO_DOMAIN_DEFAULT = 'https://xbato.com'
+const BATO_DOMAIN_DEFAULT = 'https://bato.to'
 
 export const BatoToInfo: SourceInfo = {
     version: '3.1.7',
-    name: 'BatoTo Dynamic Domain test3.5',
+    name: 'BatoTo Dynamic Domain test4',
     icon: 'icon.png',
     author: 'niclimcy',
     authorWebsite: 'https://github.com/niclimcy',
@@ -117,12 +117,13 @@ implements
 
             return await this.requestManager.schedule(request, 1)
         } catch {
-            console.log('Stored domain failed, trying other domains...')
+            console.log('Stored domain failed, trying all mirror domains in parallel...')
             const domains = BTDomains['Domains']
-            for (const domainObj of domains) {
+            
+            // Try all domains simultaneously
+            const attemptPromises = domains.map(async (domainObj) => {
                 const domain: string = domainObj.url
-                await this.stateManager.store('domain', domain)
-    
+                
                 try {
                     const request = App.createRequest({
                         url: `${domain}${path}`,
@@ -137,13 +138,16 @@ implements
                 } 
                 catch (error) {
                     console.log(`Domain ${domain} failed with error: ${error}`)
-                    continue
+                    throw error
                 }
+            })
+
+            try {
+                return await Promise.any(attemptPromises)
+            } catch {
+                throw new Error('All domains failed')
             }
         }
-        
-
-        throw new Error('All domains failed')
     }
 
     async getSourceMenu(): Promise<DUISection> {
