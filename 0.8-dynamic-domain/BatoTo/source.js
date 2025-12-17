@@ -3294,35 +3294,57 @@ var _Sources = (() => {
     async networkRequest(path, param) {
       try {
         const domain = await this.stateManager.retrieve("domain") ?? await BTDomains.getDefault();
+        const startTime = Date.now();
+        console.log(`[TIMING] Attempting stored domain: ${domain}`);
         const request = App.createRequest({
           url: `${domain}${path}`,
           method: "GET",
           param
         });
-        return await this.requestManager.schedule(request, 1);
-      } catch {
-        console.log("Stored domain failed, trying all mirror domains in parallel...");
+        const response = await this.requestManager.schedule(request, 1);
+        const elapsed = Date.now() - startTime;
+        console.log(`[TIMING] Domain ${domain} responded in ${elapsed}ms with status ${response.status}`);
+        return response;
+      } catch (error) {
+        console.log("[TIMING] Stored domain failed after timeout, starting parallel mirror attempts...");
         const domains = BTDomains["Domains"];
         const attemptPromises = domains.map(async (domainObj) => {
           const domain = domainObj.url;
+          const startTime = Date.now();
           try {
+            console.log(`[TIMING] Starting request to ${domain}`);
             const request = App.createRequest({
               url: `${domain}${path}`,
               method: "GET",
               param
             });
             const response = await this.requestManager.schedule(request, 1);
+            const elapsed = Date.now() - startTime;
+            console.log(`[TIMING] Domain ${domain} succeeded in ${elapsed}ms with status ${response.status}`);
+            console.log(`[RESPONSE] ${domain} - Headers: ${JSON.stringify(response.headers || {})}`);
             await this.stateManager.store("domain", domain);
-            console.log(`Domain ${domain} succeeded`);
             return response;
-          } catch (error) {
-            console.log(`Domain ${domain} failed with error: ${error}`);
-            throw error;
+          } catch (error2) {
+            const elapsed = Date.now() - startTime;
+            console.log(`[TIMING] Domain ${domain} failed after ${elapsed}ms`);
+            console.log(`[ERROR] ${domain} - Error type: ${error2?.name || "Unknown"}`);
+            console.log(`[ERROR] ${domain} - Error message: ${error2?.message || String(error2)}`);
+            if (error2?.message?.includes("403") || error2?.message?.includes("Cloudflare")) {
+              console.log(`[CLOUDFLARE] ${domain} - Cloudflare challenge detected`);
+            }
+            if (error2?.message?.includes("timeout") || error2?.message?.includes("timed out")) {
+              console.log(`[TIMEOUT] ${domain} - Request timeout after ${elapsed}ms`);
+            }
+            throw error2;
           }
         });
         try {
-          return await Promise.any(attemptPromises);
-        } catch {
+          const fastestResponse = await Promise.any(attemptPromises);
+          console.log("[TIMING] Parallel attempts completed, fastest domain succeeded");
+          return fastestResponse;
+        } catch (aggregateError) {
+          console.log("[ERROR] All mirror domains failed");
+          console.log(`[ERROR] Reasons: ${aggregateError?.errors?.map((e) => e.message).join(", ") || "Unknown"}`);
           throw new Error("All domains failed");
         }
       }
