@@ -3244,10 +3244,10 @@ var _Sources = (() => {
   };
 
   // src/BatoTo/BatoTo.ts
-  var BATO_DOMAIN_DEFAULT = "https://xbato.com";
+  var BATO_DOMAIN_DEFAULT = "https://bato.to";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain test3.5",
+    name: "BatoTo Dynamic Domain test4",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
@@ -3301,11 +3301,10 @@ var _Sources = (() => {
         });
         return await this.requestManager.schedule(request, 1);
       } catch {
-        console.log("Stored domain failed, trying other domains...");
+        console.log("Stored domain failed, trying all mirror domains in parallel...");
         const domains = BTDomains["Domains"];
-        for (const domainObj of domains) {
+        const attemptPromises = domains.map(async (domainObj) => {
           const domain = domainObj.url;
-          await this.stateManager.store("domain", domain);
           try {
             const request = App.createRequest({
               url: `${domain}${path}`,
@@ -3318,11 +3317,15 @@ var _Sources = (() => {
             return response;
           } catch (error) {
             console.log(`Domain ${domain} failed with error: ${error}`);
-            continue;
+            throw error;
           }
+        });
+        try {
+          return await Promise.any(attemptPromises);
+        } catch {
+          throw new Error("All domains failed");
         }
       }
-      throw new Error("All domains failed");
     }
     async getSourceMenu() {
       return Promise.resolve(
