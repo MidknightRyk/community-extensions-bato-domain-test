@@ -44,7 +44,7 @@ const BATO_DOMAIN_DEFAULT = 'https://bato.to'
 
 export const BatoToInfo: SourceInfo = {
     version: '3.1.7',
-    name: 'BatoTo Dynamic Domain test4',
+    name: 'BatoTo Dynamic Domain test5',
     icon: 'icon.png',
     author: 'niclimcy',
     authorWebsite: 'https://github.com/niclimcy',
@@ -107,42 +107,68 @@ implements
     async networkRequest(path:string, param?:string): Promise<Response> {
         
         const domains = BTDomains['Domains']
+        const overallStart = Date.now()
             
-        // Try all domains simultaneously with detailed logging
+        // Try all domains simultaneously with detailed breakdown logging
         const attemptPromises = domains.map(async (domainObj) => {
             const domain: string = domainObj.url
-            const startTime = Date.now()
+            const domainStart = Date.now()
                 
             try {
                 console.log(`[TIMING] Starting request to ${domain}`)
                     
+                const requestBuildStart = Date.now()
                 const request = App.createRequest({
                     url: `${domain}${path}`,
                     method: 'GET',
                     param: param
                 })
-        
+                const requestBuildTime = Date.now() - requestBuildStart
+                console.log(`[BREAKDOWN] ${domain} - Request build time: ${requestBuildTime}ms`)
+                
+                // Schedule request with detailed breakdown
+                const scheduleStart = Date.now()
                 const response = await this.requestManager.schedule(request, 1)
-                const elapsed = Date.now() - startTime
+                const scheduleTime = Date.now() - scheduleStart
+                
+                const totalElapsed = Date.now() - domainStart
+                const overallElapsed = Date.now() - overallStart
                     
-                console.log(`[TIMING] Domain ${domain} succeeded in ${elapsed}ms with status ${response.status}`)
-                console.log(`[RESPONSE] ${domain} - Headers: ${JSON.stringify(response.headers || {})}`)
+                console.log(`[BREAKDOWN] ${domain} - Schedule time: ${scheduleTime}ms`)
+                console.log(`[BREAKDOWN] ${domain} - Total request time: ${totalElapsed}ms`)
+                console.log(`[BREAKDOWN] ${domain} - Overall elapsed: ${overallElapsed}ms`)
+                console.log(`[TIMING] Domain ${domain} succeeded in ${totalElapsed}ms with status ${response.status}`)
+                console.log(`[RESPONSE] ${domain} - Response data size: ${(response.data as string)?.length || 0} bytes`)
                     
+                const storeStart = Date.now()
                 await this.stateManager.store('domain', domain)
+                const storeTime = Date.now() - storeStart
+                console.log(`[BREAKDOWN] ${domain} - Store time: ${storeTime}ms`)
+                    
                 return response
             } 
             catch (error: any) {
-                const elapsed = Date.now() - startTime
-                console.log(`[TIMING] Domain ${domain} failed after ${elapsed}ms`)
+                const totalElapsed = Date.now() - domainStart
+                const overallElapsed = Date.now() - overallStart
+                
+                console.log(`[BREAKDOWN] ${domain} - Total time before failure: ${totalElapsed}ms`)
+                console.log(`[BREAKDOWN] ${domain} - Overall elapsed: ${overallElapsed}ms`)
+                console.log(`[TIMING] Domain ${domain} failed after ${totalElapsed}ms`)
                 console.log(`[ERROR] ${domain} - Error type: ${error?.name || 'Unknown'}`)
                 console.log(`[ERROR] ${domain} - Error message: ${error?.message || String(error)}`)
                     
-                // Check for Cloudflare-specific errors
+                // Check for specific error types
                 if (error?.message?.includes('403') || error?.message?.includes('Cloudflare')) {
                     console.log(`[CLOUDFLARE] ${domain} - Cloudflare challenge detected`)
                 }
                 if (error?.message?.includes('timeout') || error?.message?.includes('timed out')) {
-                    console.log(`[TIMEOUT] ${domain} - Request timeout after ${elapsed}ms`)
+                    console.log(`[TIMEOUT] ${domain} - Request timeout after ${totalElapsed}ms`)
+                }
+                if (error?.message?.includes('ECONNREFUSED')) {
+                    console.log(`[CONNECTION] ${domain} - Connection refused`)
+                }
+                if (error?.message?.includes('ENOTFOUND')) {
+                    console.log(`[DNS] ${domain} - DNS resolution failed`)
                 }
                     
                 throw error
@@ -150,10 +176,18 @@ implements
         })
 
         try {
+            const raceStart = Date.now()
             const fastestResponse = await Promise.any(attemptPromises)
+            const raceElapsed = Date.now() - raceStart
+            const totalOverall = Date.now() - overallStart
+            
+            console.log(`[BREAKDOWN] Race resolution time: ${raceElapsed}ms`)
+            console.log(`[BREAKDOWN] Total networkRequest time: ${totalOverall}ms`)
             console.log('[TIMING] Parallel attempts completed, fastest domain succeeded')
             return fastestResponse
         } catch (aggregateError) {
+            const totalOverall = Date.now() - overallStart
+            console.log(`[BREAKDOWN] Total networkRequest time (all failed): ${totalOverall}ms`)
             console.log('[ERROR] All mirror domains failed')
             console.log(`[ERROR] Reasons: ${(aggregateError as AggregateError)?.errors?.map((e: Error) => e.message).join(', ') || 'Unknown'}`)
             throw new Error('All domains failed')
