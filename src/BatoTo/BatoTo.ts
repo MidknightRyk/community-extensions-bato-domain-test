@@ -106,77 +106,59 @@ implements
 
     async networkRequest(path:string, param?:string): Promise<Response> {
         
+        const domains = BTDomains['Domains']
+            
+        // Try all domains simultaneously with detailed logging
+        const attemptPromises = domains.map(async (domainObj) => {
+            const domain: string = domainObj.url
+            const startTime = Date.now()
+                
+            try {
+                console.log(`[TIMING] Starting request to ${domain}`)
+                    
+                const request = App.createRequest({
+                    url: `${domain}${path}`,
+                    method: 'GET',
+                    param: param
+                })
+        
+                const response = await this.requestManager.schedule(request, 1)
+                const elapsed = Date.now() - startTime
+                    
+                console.log(`[TIMING] Domain ${domain} succeeded in ${elapsed}ms with status ${response.status}`)
+                console.log(`[RESPONSE] ${domain} - Headers: ${JSON.stringify(response.headers || {})}`)
+                    
+                await this.stateManager.store('domain', domain)
+                return response
+            } 
+            catch (error: any) {
+                const elapsed = Date.now() - startTime
+                console.log(`[TIMING] Domain ${domain} failed after ${elapsed}ms`)
+                console.log(`[ERROR] ${domain} - Error type: ${error?.name || 'Unknown'}`)
+                console.log(`[ERROR] ${domain} - Error message: ${error?.message || String(error)}`)
+                    
+                // Check for Cloudflare-specific errors
+                if (error?.message?.includes('403') || error?.message?.includes('Cloudflare')) {
+                    console.log(`[CLOUDFLARE] ${domain} - Cloudflare challenge detected`)
+                }
+                if (error?.message?.includes('timeout') || error?.message?.includes('timed out')) {
+                    console.log(`[TIMEOUT] ${domain} - Request timeout after ${elapsed}ms`)
+                }
+                    
+                throw error
+            }
+        })
 
         try {
-            const domain: string = await this.stateManager.retrieve('domain') ?? await BTDomains.getDefault()
-            const startTime = Date.now()
-            console.log(`[TIMING] Attempting stored domain: ${domain}`)
-            
-            const request = App.createRequest({
-                url: `${domain}${path}`,
-                method: 'GET',
-                param: param
-            })
-
-            const response = await this.requestManager.schedule(request, 1)
-            const elapsed = Date.now() - startTime
-            console.log(`[TIMING] Domain ${domain} responded in ${elapsed}ms with status ${response.status}`)
-            return response
-        } catch (error) {
-            console.log('[TIMING] Stored domain failed after timeout, starting parallel mirror attempts...')
-            const domains = BTDomains['Domains']
-            
-            // Try all domains simultaneously with detailed logging
-            const attemptPromises = domains.map(async (domainObj) => {
-                const domain: string = domainObj.url
-                const startTime = Date.now()
-                
-                try {
-                    console.log(`[TIMING] Starting request to ${domain}`)
-                    
-                    const request = App.createRequest({
-                        url: `${domain}${path}`,
-                        method: 'GET',
-                        param: param
-                    })
-        
-                    const response = await this.requestManager.schedule(request, 1)
-                    const elapsed = Date.now() - startTime
-                    
-                    console.log(`[TIMING] Domain ${domain} succeeded in ${elapsed}ms with status ${response.status}`)
-                    console.log(`[RESPONSE] ${domain} - Headers: ${JSON.stringify(response.headers || {})}`)
-                    
-                    await this.stateManager.store('domain', domain)
-                    return response
-                } 
-                catch (error: any) {
-                    const elapsed = Date.now() - startTime
-                    console.log(`[TIMING] Domain ${domain} failed after ${elapsed}ms`)
-                    console.log(`[ERROR] ${domain} - Error type: ${error?.name || 'Unknown'}`)
-                    console.log(`[ERROR] ${domain} - Error message: ${error?.message || String(error)}`)
-                    
-                    // Check for Cloudflare-specific errors
-                    if (error?.message?.includes('403') || error?.message?.includes('Cloudflare')) {
-                        console.log(`[CLOUDFLARE] ${domain} - Cloudflare challenge detected`)
-                    }
-                    if (error?.message?.includes('timeout') || error?.message?.includes('timed out')) {
-                        console.log(`[TIMEOUT] ${domain} - Request timeout after ${elapsed}ms`)
-                    }
-                    
-                    throw error
-                }
-            })
-
-            try {
-                const fastestResponse = await Promise.any(attemptPromises)
-                console.log('[TIMING] Parallel attempts completed, fastest domain succeeded')
-                return fastestResponse
-            } catch (aggregateError: any) {
-                console.log('[ERROR] All mirror domains failed')
-                console.log(`[ERROR] Reasons: ${aggregateError?.errors?.map((e: any) => e.message).join(', ') || 'Unknown'}`)
-                throw new Error('All domains failed')
-            }
+            const fastestResponse = await Promise.any(attemptPromises)
+            console.log('[TIMING] Parallel attempts completed, fastest domain succeeded')
+            return fastestResponse
+        } catch (aggregateError) {
+            console.log('[ERROR] All mirror domains failed')
+            console.log(`[ERROR] Reasons: ${(aggregateError as AggregateError)?.errors?.map((e: Error) => e.message).join(', ') || 'Unknown'}`)
+            throw new Error('All domains failed')
         }
+        
     }
 
     async getSourceMenu(): Promise<DUISection> {
