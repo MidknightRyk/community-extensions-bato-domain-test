@@ -88,11 +88,11 @@ export const languageSettings = (
     })
 }
 
-const getDomains = async (
+const getSelectedDomain = async (
     stateManager: SourceStateManager
 ): Promise<string[]> => {
     return (
-        (await stateManager.retrieve('domains')) ?? BTDomains.getDefault()
+        (await stateManager.retrieve('selected_domain')) ?? BTDomains.getDefault()
     )
 }
 
@@ -115,15 +115,15 @@ export const domainSettings = (stateManager: SourceStateManager): DUINavigationB
                     rows: async () => [
                         App.createDUISelect({
                             id: 'domains',
-                            label: 'Domains',
+                            label: 'Selected Domain',
                             options: BTDomains.getBTDomainList(),
                             labelResolver: async (option) =>
                                 BTDomains.getName(option),
                             value: App.createDUIBinding({
-                                get: () => getDomains(stateManager),
+                                get: () => getSelectedDomain(stateManager),
                                 set: async (newValue) =>
                                     await stateManager.store(
-                                        'domains',
+                                        'selected_domain',
                                         newValue
                                     )
                             }),
