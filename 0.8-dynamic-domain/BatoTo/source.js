@@ -2866,7 +2866,7 @@ var _Sources = (() => {
   var BTDomainsClass = class {
     constructor() {
       this.Domains = [
-        // { name: 'bato.to', url: 'https://bato.to'},
+        { name: "bato.to", url: "https://bato.to" },
         { name: "wto.to", url: "https://wto.to" },
         { name: "mto.to", url: "https://mto.to" },
         { name: "hto.to", url: "https://hto.to" },
@@ -2902,7 +2902,7 @@ var _Sources = (() => {
       return this.Domains.filter((Domain) => Domain.url == url)[0]?.name ?? "Unknown";
     }
     getDefault() {
-      return this.Domains.filter((Domain) => Domain.default).map((Domain) => Domain.url)[0] ?? "https://bato.to";
+      return this.Domains.filter((Domain) => Domain.default).map((Domain) => Domain.url) ?? ["https://xbato.com"];
     }
   };
   var BTDomains = new BTDomainsClass();
@@ -3237,7 +3237,8 @@ var _Sources = (() => {
         await Promise.all([
           stateManager.store("languages", BTLanguages.getDefault()),
           stateManager.store("language_home_filter", false),
-          stateManager.store("language_search_filter", false)
+          stateManager.store("language_search_filter", false),
+          stateManager.store("domains", BTDomains.getDefault())
         ]);
       }
     });
@@ -3247,7 +3248,7 @@ var _Sources = (() => {
   var BATO_DOMAIN_DEFAULT = "https://bato.to";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain test5",
+    name: "BatoTo Dynamic Domain test6",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
@@ -3268,7 +3269,7 @@ var _Sources = (() => {
       this.stateManager = App.createSourceStateManager();
       this.requestManager = App.createRequestManager({
         requestsPerSecond: 4,
-        requestTimeout: 15e3,
+        requestTimeout: 5e3,
         interceptor: {
           interceptRequest: async (request) => {
             request.headers = {
@@ -3291,75 +3292,148 @@ var _Sources = (() => {
         }
       });
     }
-    async networkRequest(path, param) {
+    async domainRace() {
       const domains = BTDomains["Domains"];
-      const overallStart = Date.now();
       const attemptPromises = domains.map(async (domainObj) => {
         const domain = domainObj.url;
         const domainStart = Date.now();
+        const cloudflareDomains = [];
         try {
-          console.log(`[TIMING] Starting request to ${domain}`);
-          const requestBuildStart = Date.now();
+          console.log(`[TESTLOG-TIMING] Starting request to ${domain}`);
           const request = App.createRequest({
-            url: `${domain}${path}`,
-            method: "GET",
-            param
+            url: `${domain}/`,
+            method: "GET"
           });
-          const requestBuildTime = Date.now() - requestBuildStart;
-          console.log(`[BREAKDOWN] ${domain} - Request build time: ${requestBuildTime}ms`);
-          const scheduleStart = Date.now();
           const response = await this.requestManager.schedule(request, 1);
-          const scheduleTime = Date.now() - scheduleStart;
-          const totalElapsed = Date.now() - domainStart;
-          const overallElapsed = Date.now() - overallStart;
-          console.log(`[BREAKDOWN] ${domain} - Schedule time: ${scheduleTime}ms`);
-          console.log(`[BREAKDOWN] ${domain} - Total request time: ${totalElapsed}ms`);
-          console.log(`[BREAKDOWN] ${domain} - Overall elapsed: ${overallElapsed}ms`);
-          console.log(`[TIMING] Domain ${domain} succeeded in ${totalElapsed}ms with status ${response.status}`);
-          console.log(`[RESPONSE] ${domain} - Response data size: ${response.data?.length || 0} bytes`);
-          const storeStart = Date.now();
-          await this.stateManager.store("domain", domain);
-          const storeTime = Date.now() - storeStart;
-          console.log(`[BREAKDOWN] ${domain} - Store time: ${storeTime}ms`);
-          return response;
+          if (response.status !== 200) {
+            if (response.status == 503 || response.status == 403) {
+              cloudflareDomains.push(domain);
+              throw new Error(`Domain ${domain} is behind Cloudflare, disregarding for now.`);
+            }
+            throw new Error(`Request failed with status ${response.status}: ${response.headers}`);
+          }
+          const domainTime = Date.now() - domainStart;
+          console.log(`[TESTLOG-TIMING] Domain ${domain} succeeded in ${domainTime}ms with status ${response.status}`);
+          console.log(`[TESTLOG-RESPONSE] ${domain} - Response data size: ${response.data?.length || 0} bytes`);
+          return { domain, domainTime };
         } catch (error) {
-          const totalElapsed = Date.now() - domainStart;
-          const overallElapsed = Date.now() - overallStart;
-          console.log(`[BREAKDOWN] ${domain} - Total time before failure: ${totalElapsed}ms`);
-          console.log(`[BREAKDOWN] ${domain} - Overall elapsed: ${overallElapsed}ms`);
-          console.log(`[TIMING] Domain ${domain} failed after ${totalElapsed}ms`);
-          console.log(`[ERROR] ${domain} - Error type: ${error?.name || "Unknown"}`);
-          console.log(`[ERROR] ${domain} - Error message: ${error?.message || String(error)}`);
-          if (error?.message?.includes("403") || error?.message?.includes("Cloudflare")) {
-            console.log(`[CLOUDFLARE] ${domain} - Cloudflare challenge detected`);
-          }
-          if (error?.message?.includes("timeout") || error?.message?.includes("timed out")) {
-            console.log(`[TIMEOUT] ${domain} - Request timeout after ${totalElapsed}ms`);
-          }
-          if (error?.message?.includes("ECONNREFUSED")) {
-            console.log(`[CONNECTION] ${domain} - Connection refused`);
-          }
-          if (error?.message?.includes("ENOTFOUND")) {
-            console.log(`[DNS] ${domain} - DNS resolution failed`);
-          }
-          throw error;
+          const domainTime = Date.now() - domainStart;
+          console.log(`[TESTLOG-TIMING] Domain ${domain} failed after ${domainTime}ms`);
+          console.log(`[TESTLOG-ERROR] ${domain} - Error type: ${error?.name || "Unknown"}`);
+          console.log(`[TESTLOG-ERROR] ${domain} - Error message: ${error?.message || String(error)}`);
+          return { domain, domainTime: -1 };
         }
       });
       try {
-        const raceStart = Date.now();
-        const fastestResponse = await Promise.any(attemptPromises);
-        const raceElapsed = Date.now() - raceStart;
-        const totalOverall = Date.now() - overallStart;
-        console.log(`[BREAKDOWN] Race resolution time: ${raceElapsed}ms`);
-        console.log(`[BREAKDOWN] Total networkRequest time: ${totalOverall}ms`);
-        console.log("[TIMING] Parallel attempts completed, fastest domain succeeded");
-        return fastestResponse;
+        const raceResults = await Promise.all(attemptPromises);
+        return raceResults;
       } catch (aggregateError) {
-        const totalOverall = Date.now() - overallStart;
-        console.log(`[BREAKDOWN] Total networkRequest time (all failed): ${totalOverall}ms`);
-        console.log("[ERROR] All mirror domains failed");
-        console.log(`[ERROR] Reasons: ${aggregateError?.errors?.map((e) => e.message).join(", ") || "Unknown"}`);
+        console.log("[TESTLOG-ERROR] All mirror domains failed");
+        console.log(`[TESTLOG-ERROR] Reasons: ${aggregateError?.errors?.map((e) => e.message).join(", ") || "Unknown"}`);
         throw new Error("All domains failed");
+      }
+    }
+    async networkRequest(path, param) {
+      if (!await this.stateManager.retrieve("domain")) {
+        let runCount = 0;
+        const totalRaceResults = [];
+        while (runCount < 3) {
+          try {
+            const raceResults = await this.domainRace();
+            raceResults.forEach((result) => {
+              const existing = totalRaceResults.find((r) => r.domain === result.domain);
+              if (existing) {
+                existing.domainTime.push(result.domainTime);
+              } else {
+                totalRaceResults.push({ domain: result.domain, domainTime: [result.domainTime] });
+              }
+            });
+            runCount++;
+          } catch (error) {
+            console.log(`[TESTLOG-ERROR] Domain race attempt ${runCount + 1} failed with error: ${error?.message || String(error)}`);
+            break;
+          }
+        }
+        if (totalRaceResults.length > 0) {
+          const medianTimes = totalRaceResults.map((result) => {
+            return {
+              domain: result.domain,
+              medianTime: result.domainTime.filter((t) => t >= 0).sort((a, b) => a - b)[Math.floor(result.domainTime.filter((t) => t >= 0).length / 2)] || Number.MAX_SAFE_INTEGER
+            };
+          });
+          medianTimes.sort((a, b) => a.medianTime - b.medianTime);
+          const bestDomain = medianTimes[0]?.domain;
+          console.log(`[TESTLOG-INFO] Selected best domain: ${bestDomain} with median time: ${medianTimes[0]?.medianTime}ms`);
+          await this.stateManager.store("domain", bestDomain);
+        }
+        throw new Error("All domains failed during race attempts");
+      }
+      const cachedDomain = await this.stateManager.retrieve("domain") ?? await BTDomains.getDefault();
+      const cachedReqStart = Date.now();
+      try {
+        console.log(`[TESTLOG-TIMING] Starting request to ${cachedDomain}`);
+        const request = App.createRequest({
+          url: `${cachedDomain}${path}`,
+          method: "GET",
+          param
+        });
+        const response = await this.requestManager.schedule(request, 1);
+        const cachedReqTime = Date.now() - cachedReqStart;
+        console.log(`[TESTLOGTIMING] Stored Domain ${cachedDomain} succeeded after ${cachedReqTime}ms`);
+        return response;
+      } catch (error) {
+        const cachedReqTime = Date.now() - cachedReqStart;
+        console.log(`[TESTLOG-TIMING] Stored Domain ${cachedDomain} failed after ${cachedReqTime}ms`);
+        console.log(`[TESTLOG-ERROR] ${cachedDomain} - Error type: ${error?.name || "Unknown"}`);
+        console.log(`[TESTLOG-ERROR] ${cachedDomain} - Error message: ${error?.message || String(error)}`);
+        const domains = BTDomains["Domains"];
+        const attemptPromises = domains.map(async (domainObj) => {
+          const domain = domainObj.url;
+          const domainStart = Date.now();
+          try {
+            console.log(`[TESTLOG-TIMING] Starting request to ${domain}`);
+            const request = App.createRequest({
+              url: `${domain}${path}`,
+              method: "GET",
+              param
+            });
+            const response = await this.requestManager.schedule(request, 1);
+            if (response.status !== 200) {
+              throw new Error(`Request failed with status ${response.status}: ${response.headers}`);
+            }
+            const domainTime = Date.now() - domainStart;
+            console.log(`[TESTLOG-TIMING] Domain ${domain} succeeded in ${domainTime}ms with status ${response.status}`);
+            console.log(`[TESTLOG-RESPONSE] ${domain} - Response data size: ${response.data?.length || 0} bytes`);
+            await this.stateManager.store("domain", domain);
+            return response;
+          } catch (error2) {
+            const domainTime = Date.now() - domainStart;
+            console.log(`[TESTLOG-TIMING] Domain ${domain} failed after ${domainTime}ms`);
+            console.log(`[TESTLOG-ERROR] ${domain} - Error type: ${error2?.name || "Unknown"}`);
+            console.log(`[TESTLOG-ERROR] ${domain} - Error message: ${error2?.message || String(error2)}`);
+            if (error2?.message?.includes("403") || error2?.message?.includes("Cloudflare")) {
+              console.log(`[TESTLOG-CLOUDFLARE] ${domain} - Cloudflare challenge detected`);
+            }
+            if (error2?.message?.includes("timeout") || error2?.message?.includes("timed out")) {
+              console.log(`[TESTLOG-TIMEOUT] ${domain} - Request timeout after ${domainTime}ms`);
+            }
+            if (error2?.message?.includes("ECONNREFUSED")) {
+              console.log(`[TESTLOG-CONNECTION] ${domain} - Connection refused`);
+            }
+            if (error2?.message?.includes("ENOTFOUND")) {
+              console.log(`[TESTLOG-DNS] ${domain} - DNS resolution failed`);
+            }
+            throw error2;
+          }
+        });
+        try {
+          const fastestResponse = await Promise.any(attemptPromises);
+          return fastestResponse;
+        } catch (aggregateError) {
+          console.log("[TESTLOG-ERROR] All mirror domains failed");
+          console.log(`[TESTLOG-ERROR] Reasons: ${aggregateError?.errors?.map((e) => e.message).join(", ") || "Unknown"}`);
+          throw new Error("All domains failed");
+        }
       }
     }
     async getSourceMenu() {
@@ -3471,10 +3545,10 @@ Please go to the homepage of <${_BatoTo.name}> and press the cloud icon.`
     }
     async getCloudflareBypassRequestAsync() {
       return App.createRequest({
-        url: await this.stateManager.retrieve("domain") ?? await BTDomains.getDefault(),
+        url: await this.stateManager.retrieve("domain") ?? (await BTDomains.getDefault())[0],
         method: "GET",
         headers: {
-          referer: `${await this.stateManager.retrieve("domain") ?? await BTDomains.getDefault()}/`,
+          referer: `${await this.stateManager.retrieve("domain") ?? (await BTDomains.getDefault())[0]}/`,
           "user-agent": await this.requestManager.getDefaultUserAgent()
         }
       });
