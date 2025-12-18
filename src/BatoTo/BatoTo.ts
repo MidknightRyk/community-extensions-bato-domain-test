@@ -44,7 +44,7 @@ const BATO_DOMAIN_DEFAULT = 'https://bato.to'
 
 export const BatoToInfo: SourceInfo = {
     version: '3.1.7',
-    name: 'BatoTo Dynamic Domain test7.5.8',
+    name: 'BatoTo Dynamic Domain test7.5.9',
     icon: 'icon.png',
     author: 'niclimcy',
     authorWebsite: 'https://github.com/niclimcy',
@@ -300,7 +300,7 @@ implements
             return await this.networkRequestDynamic(path, param)
         } else {
             if (!await this.stateManager.retrieve('selected_domain')) {
-                await this.stateManager.store('selected_domain', await BTDomains.getDefault()[0])
+                await this.stateManager.store('selected_domain', await BTDomains.getDefault())
             }
             await this.stateManager.store(
                 'dynamic_domain',

@@ -92,7 +92,7 @@ const getSelectedDomain = async (
     stateManager: SourceStateManager
 ): Promise<string[]> => {
     return (
-        (await stateManager.retrieve('domains')) ?? BTDomains.getDefault()
+        (await stateManager.retrieve('selected_domain')) ?? BTDomains.getDefault()
     )
 }
 
@@ -123,7 +123,7 @@ export const domainSettings = (stateManager: SourceStateManager): DUINavigationB
                                 get: () => getSelectedDomain(stateManager),
                                 set: async (newValue) =>
                                     await stateManager.store(
-                                        'domains',
+                                        'selected_domain',
                                         newValue
                                     )
                             }),
