@@ -3198,6 +3198,9 @@ var _Sources = (() => {
   var getDomains = async (stateManager) => {
     return await stateManager.retrieve("domains") ?? BTDomains.getDefault();
   };
+  var getDynamicDomainSwitch = async (stateManager) => {
+    return await stateManager.retrieve("is_dynamic_domain") ?? false;
+  };
   var domainSettings = (stateManager) => {
     return App.createDUINavigationButton({
       id: "domain_settings",
@@ -3222,6 +3225,17 @@ var _Sources = (() => {
                   )
                 }),
                 allowsMultiselect: false
+              }),
+              App.createDUISwitch({
+                id: "dynamic_domain",
+                label: "Enable Dynamic Domain Selection",
+                value: App.createDUIBinding({
+                  get: () => getDynamicDomainSwitch(stateManager),
+                  set: async (newValue) => await stateManager.store(
+                    "is_dynamic_domain",
+                    newValue
+                  )
+                })
               })
             ]
           })
@@ -3248,7 +3262,7 @@ var _Sources = (() => {
   var BATO_DOMAIN_DEFAULT = "https://bato.to";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain test7.5.5",
+    name: "BatoTo Dynamic Domain test7.5.6",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
