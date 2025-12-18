@@ -83,7 +83,7 @@ implements
                 request.headers = {
                     ...(request.headers ?? {}),
                     ...{
-                        referer: `${await this.stateManager.retrieve('selected_domain') ?? BATO_DOMAIN_DEFAULT}/`,
+                        referer: `${(await this.stateManager.retrieve('selected_domain'))[0] ?? BATO_DOMAIN_DEFAULT}/`,
                         'user-agent':
                     await this.requestManager.getDefaultUserAgent()
                     }
@@ -155,7 +155,7 @@ implements
     }
 
     async networkRequestStatic(path:string, param?:string): Promise<Response> {
-        const domain = await this.stateManager.retrieve('selected_domain')
+        const domain = (await this.stateManager.retrieve('selected_domain'))[0]
 
         const request = App.createRequest({
             url: `${domain}${path}`,
@@ -460,7 +460,7 @@ implements
     async getCloudflareBypassRequestAsync(): Promise<Request> {
         const domain = ((await this.stateManager.retrieve('dynamic_domain')) ?? false
             ? await this.stateManager.retrieve('dynamic_domain')
-            : await this.stateManager.retrieve('selected_domain')) ?? (await BTDomains.getDefault())[0] 
+            : (await this.stateManager.retrieve('selected_domain'))[0]) ?? (await BTDomains.getDefault())[0]
         return App.createRequest({
             url: domain,
             method: 'GET',
