@@ -3209,7 +3209,7 @@ var _Sources = (() => {
         sections: async () => [
           App.createDUISection({
             id: "content",
-            footer: "Use this to change the source domain to one that is not down.",
+            footer: "Use this to change the source domain selection to dynamic instead of a fixed domain.",
             isHidden: false,
             rows: async () => [
               App.createDUISelect({
@@ -3227,7 +3227,7 @@ var _Sources = (() => {
                 allowsMultiselect: false
               }),
               App.createDUISwitch({
-                id: "dynamic_domain",
+                id: "is_dynamic_domain",
                 label: "Enable Dynamic Domain Selection",
                 value: App.createDUIBinding({
                   get: () => getDynamicDomainSwitch(stateManager),
@@ -3252,7 +3252,8 @@ var _Sources = (() => {
           stateManager.store("languages", BTLanguages.getDefault()),
           stateManager.store("language_home_filter", false),
           stateManager.store("language_search_filter", false),
-          stateManager.store("domains", BTDomains.getDefault())
+          stateManager.store("domains", BTDomains.getDefault()),
+          stateManager.store("is_dynamic_domain", false)
         ]);
       }
     });
@@ -3262,7 +3263,7 @@ var _Sources = (() => {
   var BATO_DOMAIN_DEFAULT = "https://bato.to";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain test7",
+    name: "BatoTo Dynamic Domain test7.5",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
