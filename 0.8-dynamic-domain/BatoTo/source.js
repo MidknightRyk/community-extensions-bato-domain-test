@@ -3196,7 +3196,7 @@ var _Sources = (() => {
     });
   };
   var getSelectedDomain = async (stateManager) => {
-    return await stateManager.retrieve("domains") ?? BTDomains.getDefault();
+    return await stateManager.retrieve("selected_domain") ?? BTDomains.getDefault();
   };
   var getDynamicDomainSwitch = async (stateManager) => {
     return await stateManager.retrieve("is_dynamic_domain") ?? false;
@@ -3220,7 +3220,7 @@ var _Sources = (() => {
                 value: App.createDUIBinding({
                   get: () => getSelectedDomain(stateManager),
                   set: async (newValue) => await stateManager.store(
-                    "domains",
+                    "selected_domain",
                     newValue
                   )
                 }),
@@ -3262,7 +3262,7 @@ var _Sources = (() => {
   var BATO_DOMAIN_DEFAULT = "https://bato.to";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain test7.5.8",
+    name: "BatoTo Dynamic Domain test7.5.9",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
@@ -3464,7 +3464,7 @@ var _Sources = (() => {
         return await this.networkRequestDynamic(path, param);
       } else {
         if (!await this.stateManager.retrieve("selected_domain")) {
-          await this.stateManager.store("selected_domain", await BTDomains.getDefault()[0]);
+          await this.stateManager.store("selected_domain", await BTDomains.getDefault());
         }
         await this.stateManager.store(
           "dynamic_domain",
