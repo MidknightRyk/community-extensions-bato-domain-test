@@ -96,11 +96,11 @@ const getDomains = async (
     )
 }
 
-const getDynamicDomainSwitch = async (
-    stateManager: SourceStateManager
-): Promise<boolean> => {
-    return (await stateManager.retrieve('is_dynamic_domain')) ?? false
-}
+// const getDynamicDomainSwitch = async (
+//     stateManager: SourceStateManager
+// ): Promise<boolean> => {
+//     return (await stateManager.retrieve('is_dynamic_domain')) ?? false
+// }
 
 export const domainSettings = (stateManager: SourceStateManager): DUINavigationButton => {
     return App.createDUINavigationButton({
@@ -128,19 +128,6 @@ export const domainSettings = (stateManager: SourceStateManager): DUINavigationB
                                     )
                             }),
                             allowsMultiselect: false
-                        }),
-                        App.createDUISwitch({
-                            id: 'is_dynamic_domain',
-                            label: 'Enable Dynamic Domain Selection',
-                            value: App.createDUIBinding({
-                                get: () =>
-                                    getDynamicDomainSwitch(stateManager),
-                                set: async (newValue) =>
-                                    await stateManager.store(
-                                        'is_dynamic_domain',
-                                        newValue
-                                    )
-                            })
                         })
                     ]
                 })
@@ -158,7 +145,7 @@ export const resetSettings = (stateManager: SourceStateManager): DUIButton => {
                 stateManager.store('languages', BTLanguages.getDefault()),
                 stateManager.store('language_home_filter', false),
                 stateManager.store('language_search_filter', false),
-                stateManager.store('domains', BTDomains.getDefault()),
+                stateManager.store('selected_domain', BTDomains.getDefault()),
                 stateManager.store('is_dynamic_domain', false)
             ])
         }
