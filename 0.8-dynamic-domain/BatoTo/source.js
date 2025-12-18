@@ -3196,7 +3196,7 @@ var _Sources = (() => {
     });
   };
   var getSelectedDomain = async (stateManager) => {
-    return await stateManager.retrieve("selected_domain") ?? BTDomains.getDefault();
+    return await stateManager.retrieve("domains") ?? BTDomains.getDefault();
   };
   var getDynamicDomainSwitch = async (stateManager) => {
     return await stateManager.retrieve("is_dynamic_domain") ?? false;
@@ -3220,7 +3220,7 @@ var _Sources = (() => {
                 value: App.createDUIBinding({
                   get: () => getSelectedDomain(stateManager),
                   set: async (newValue) => await stateManager.store(
-                    "selected_domain",
+                    "domains",
                     newValue
                   )
                 }),
@@ -3262,7 +3262,7 @@ var _Sources = (() => {
   var BATO_DOMAIN_DEFAULT = "https://bato.to";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain test7.5.7",
+    name: "BatoTo Dynamic Domain test7.5.8",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
