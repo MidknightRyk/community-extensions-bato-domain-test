@@ -3195,8 +3195,8 @@ var _Sources = (() => {
       })
     });
   };
-  var getDomains = async (stateManager) => {
-    return await stateManager.retrieve("selected_domain") ?? BTDomains.getDefault();
+  var getSelectedDomain = async (stateManager) => {
+    return await stateManager.retrieve("selected_domain") ?? BTDomains.getDefault()[0];
   };
   var domainSettings = (stateManager) => {
     return App.createDUINavigationButton({
@@ -3215,7 +3215,7 @@ var _Sources = (() => {
                 options: BTDomains.getBTDomainList(),
                 labelResolver: async (option) => BTDomains.getName(option),
                 value: App.createDUIBinding({
-                  get: () => getDomains(stateManager),
+                  get: () => getSelectedDomain(stateManager),
                   set: async (newValue) => await stateManager.store(
                     "selected_domain",
                     newValue
@@ -3238,8 +3238,8 @@ var _Sources = (() => {
           stateManager.store("languages", BTLanguages.getDefault()),
           stateManager.store("language_home_filter", false),
           stateManager.store("language_search_filter", false),
-          stateManager.store("selected_domain", BTDomains.getDefault()),
-          stateManager.store("is_dynamic_domain", false)
+          stateManager.store("selected_domain", BTDomains.getDefault())
+          // stateManager.store('is_dynamic_domain', false)
         ]);
       }
     });
@@ -3249,7 +3249,7 @@ var _Sources = (() => {
   var BATO_DOMAIN_DEFAULT = "https://bato.to";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain test7.5.1",
+    name: "BatoTo Dynamic Domain test7.5.2",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
