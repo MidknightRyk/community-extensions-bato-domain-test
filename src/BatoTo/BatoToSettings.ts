@@ -96,6 +96,12 @@ const getDomains = async (
     )
 }
 
+const getDynamicDomainSwitch = async (
+    stateManager: SourceStateManager
+): Promise<boolean> => {
+    return (await stateManager.retrieve('is_dynamic_domain')) ?? false
+}
+
 export const domainSettings = (stateManager: SourceStateManager): DUINavigationButton => {
     return App.createDUINavigationButton({
         id: 'domain_settings',
@@ -122,6 +128,19 @@ export const domainSettings = (stateManager: SourceStateManager): DUINavigationB
                                     )
                             }),
                             allowsMultiselect: false
+                        }),
+                        App.createDUISwitch({
+                            id: 'dynamic_domain',
+                            label: 'Enable Dynamic Domain Selection',
+                            value: App.createDUIBinding({
+                                get: () =>
+                                    getDynamicDomainSwitch(stateManager),
+                                set: async (newValue) =>
+                                    await stateManager.store(
+                                        'is_dynamic_domain',
+                                        newValue
+                                    )
+                            })
                         })
                     ]
                 })
