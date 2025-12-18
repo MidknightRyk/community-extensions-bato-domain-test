@@ -715,7 +715,7 @@ interface BTDomain {
 
 class BTDomainsClass {
     Domains: BTDomain[] = [
-        // { name: 'bato.to', url: 'https://bato.to'},
+        { name: 'bato.to', url: 'https://bato.to'},
         { name: 'wto.to', url: 'https://wto.to' },
         { name: 'mto.to', url: 'https://mto.to' },
         { name: 'hto.to', url: 'https://hto.to' },
@@ -751,8 +751,8 @@ class BTDomainsClass {
         return this.Domains.filter(Domain => Domain.url == url)[0]?.name ?? 'Unknown'
     }
 
-    getDefault(): string {
-        return this.Domains.filter(Domain => Domain.default).map(Domain => Domain.url)[0] ?? 'https://bato.to'
+    getDefault(): string[] {
+        return this.Domains.filter(Domain => Domain.default).map(Domain => Domain.url) ?? ['https://xbato.com']
     }
 }
 
