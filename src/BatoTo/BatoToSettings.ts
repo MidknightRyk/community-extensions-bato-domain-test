@@ -88,11 +88,11 @@ export const languageSettings = (
     })
 }
 
-const getSelectedDomain = async (
+const getDomains = async (
     stateManager: SourceStateManager
-): Promise<string> => {
+): Promise<string[]> => {
     return (
-        (await stateManager.retrieve('selected_domain')) ?? BTDomains.getDefault()[0]
+        (await stateManager.retrieve('domains')) ?? BTDomains.getDefault()
     )
 }
 
@@ -103,21 +103,21 @@ export const domainSettings = (stateManager: SourceStateManager): DUINavigationB
         form: App.createDUIForm({
             sections: async () => [
                 App.createDUISection({
-                    id: 'domain_settings',
-                    footer: 'Use this to change the source domain selection to dynamic instead of a fixed domain',
+                    id: 'content',
+                    footer: 'Use this to change the source domain to one that is not down.',
                     isHidden: false,
                     rows: async () => [
                         App.createDUISelect({
-                            id: 'selected_domain',
-                            label: 'Selected Domain',
+                            id: 'domains',
+                            label: 'Domains',
                             options: BTDomains.getBTDomainList(),
                             labelResolver: async (option) =>
                                 BTDomains.getName(option),
                             value: App.createDUIBinding({
-                                get: () => getSelectedDomain(stateManager),
+                                get: () => getDomains(stateManager),
                                 set: async (newValue) =>
                                     await stateManager.store(
-                                        'selected_domain',
+                                        'domains',
                                         newValue
                                     )
                             }),
@@ -139,7 +139,7 @@ export const resetSettings = (stateManager: SourceStateManager): DUIButton => {
                 stateManager.store('languages', BTLanguages.getDefault()),
                 stateManager.store('language_home_filter', false),
                 stateManager.store('language_search_filter', false),
-                stateManager.store('selected_domain', BTDomains.getDefault()[0])
+                stateManager.store('domains', BTDomains.getDefault())
             ])
         }
     })
