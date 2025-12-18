@@ -83,7 +83,7 @@ implements
                 request.headers = {
                     ...(request.headers ?? {}),
                     ...{
-                        referer: `${await this.stateManager.retrieve('domain') ?? BATO_DOMAIN_DEFAULT}/`,
+                        referer: `${await this.stateManager.retrieve('selected_domain') ?? BATO_DOMAIN_DEFAULT}/`,
                         'user-agent':
                     await this.requestManager.getDefaultUserAgent()
                     }
@@ -154,10 +154,20 @@ implements
         }
     }
 
+    async networkRequestStatic(path:string, param?:string): Promise<Response> {
+        const domain = await this.stateManager.retrieve('selected_domain')
 
-    async networkRequest(path:string, param?:string): Promise<Response> {
+        const request = App.createRequest({
+            url: `${domain}${path}`,
+            method: 'GET',
+            param: param
+        })
 
-        if (!await this.stateManager.retrieve('domain')) {
+        return await this.requestManager.schedule(request, 1)
+    }
+
+    async networkRequestDynamic(path:string, param?:string): Promise<Response> {
+        if (!await this.stateManager.retrieve('dynamic_domain')) {
             let runCount = 0
             const totalRaceResults: {domain: string, domainTime: number[]}[] = []
             while (runCount < 3) {
@@ -194,7 +204,7 @@ implements
             throw new Error('All domains failed during race attempts')
         }
 
-        const cachedDomain: string = await this.stateManager.retrieve('domain') ?? await BTDomains.getDefault()
+        const cachedDomain: string = await this.stateManager.retrieve('dynamic_domain')
         const cachedReqStart = Date.now()
 
         try {
@@ -283,7 +293,21 @@ implements
             }
 
         }
-        
+    }
+
+    async networkRequest(path:string, param?:string): Promise<Response> {
+        if (await this.stateManager.retrieve('is_dynamic_domain')) {
+            return await this.networkRequestDynamic(path, param)
+        } else {
+            if (!await this.stateManager.retrieve('selected_domain')) {
+                await this.stateManager.store('selected_domain', await BTDomains.getDefault()[0])
+            }
+            await this.stateManager.store(
+                'dynamic_domain',
+                null
+            )
+            return await this.networkRequestStatic(path, param)
+        }
     }
 
     async getSourceMenu(): Promise<DUISection> {
@@ -434,11 +458,14 @@ implements
     }
 
     async getCloudflareBypassRequestAsync(): Promise<Request> {
+        const domain = await this.stateManager.retrieve('is_dynamic_domain') 
+            ? await this.stateManager.retrieve('dynamic_domain') ?? (await BTDomains.getDefault())[0] 
+            : await this.stateManager.retrieve('selected_domain') ?? (await BTDomains.getDefault())[0] 
         return App.createRequest({
-            url: await this.stateManager.retrieve('domain') ?? (await BTDomains.getDefault())[0],
+            url: domain,
             method: 'GET',
             headers: {
-                referer: `${await this.stateManager.retrieve('domain') ?? (await BTDomains.getDefault())[0]}/`,
+                referer: `${domain}/`,
                 'user-agent': await this.requestManager.getDefaultUserAgent()
             }
         })

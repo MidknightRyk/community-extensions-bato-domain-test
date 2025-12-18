@@ -92,8 +92,14 @@ const getDomains = async (
     stateManager: SourceStateManager
 ): Promise<string[]> => {
     return (
-        (await stateManager.retrieve('domains')) ?? BTDomains.getDefault()
+        (await stateManager.retrieve('selected_domain')) ?? BTDomains.getDefault()
     )
+}
+
+const getDynamicDomainSwitch = async (
+    stateManager: SourceStateManager
+): Promise<boolean> => {
+    return (await stateManager.retrieve('is_dynamic_domain')) ?? false
 }
 
 export const domainSettings = (stateManager: SourceStateManager): DUINavigationButton => {
@@ -108,7 +114,7 @@ export const domainSettings = (stateManager: SourceStateManager): DUINavigationB
                     isHidden: false,
                     rows: async () => [
                         App.createDUISelect({
-                            id: 'domains',
+                            id: 'selected_domain',
                             label: 'Domains',
                             options: BTDomains.getBTDomainList(),
                             labelResolver: async (option) =>
@@ -117,11 +123,24 @@ export const domainSettings = (stateManager: SourceStateManager): DUINavigationB
                                 get: () => getDomains(stateManager),
                                 set: async (newValue) =>
                                     await stateManager.store(
-                                        'domains',
+                                        'selected_domain',
                                         newValue
                                     )
                             }),
                             allowsMultiselect: false
+                        }),
+                        App.createDUISwitch({
+                            id: 'dynamic_domain',
+                            label: 'Enable Dynamic Domain Selection',
+                            value: App.createDUIBinding({
+                                get: () =>
+                                    getDynamicDomainSwitch(stateManager),
+                                set: async (newValue) =>
+                                    await stateManager.store(
+                                        'is_dynamic_domain',
+                                        newValue
+                                    )
+                            })
                         })
                     ]
                 })
