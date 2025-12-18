@@ -3196,7 +3196,7 @@ var _Sources = (() => {
     });
   };
   var getSelectedDomain = async (stateManager) => {
-    return await stateManager.retrieve("selected_domain") ?? BTDomains.getDefault()[0];
+    return await stateManager.retrieve("selected_domain") ?? BTDomains.getDefault();
   };
   var domainSettings = (stateManager) => {
     return App.createDUINavigationButton({
@@ -3205,13 +3205,13 @@ var _Sources = (() => {
       form: App.createDUIForm({
         sections: async () => [
           App.createDUISection({
-            id: "content",
-            footer: "Use this to change the source domain selection to dynamic instead of a fixed domain.",
+            id: "domain_settings",
+            footer: "Use this to change the source domain selection to dynamic instead of a fixed domain",
             isHidden: false,
             rows: async () => [
               App.createDUISelect({
                 id: "selected_domain",
-                label: "Domains",
+                label: "Selected Domain",
                 options: BTDomains.getBTDomainList(),
                 labelResolver: async (option) => BTDomains.getName(option),
                 value: App.createDUIBinding({
@@ -3249,7 +3249,7 @@ var _Sources = (() => {
   var BATO_DOMAIN_DEFAULT = "https://bato.to";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain test7.5.2",
+    name: "BatoTo Dynamic Domain test7.5.3",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
