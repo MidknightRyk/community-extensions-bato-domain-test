@@ -3196,7 +3196,10 @@ var _Sources = (() => {
     });
   };
   var getDomains = async (stateManager) => {
-    return await stateManager.retrieve("domains") ?? BTDomains.getDefault();
+    return await stateManager.retrieve("selected_domain") ?? BTDomains.getDefault();
+  };
+  var getDynamicDomainSwitch = async (stateManager) => {
+    return await stateManager.retrieve("is_dynamic_domain") ?? false;
   };
   var domainSettings = (stateManager) => {
     return App.createDUINavigationButton({
@@ -3210,18 +3213,29 @@ var _Sources = (() => {
             isHidden: false,
             rows: async () => [
               App.createDUISelect({
-                id: "domains",
+                id: "selected_domain",
                 label: "Domains",
                 options: BTDomains.getBTDomainList(),
                 labelResolver: async (option) => BTDomains.getName(option),
                 value: App.createDUIBinding({
                   get: () => getDomains(stateManager),
                   set: async (newValue) => await stateManager.store(
-                    "domains",
+                    "selected_domain",
                     newValue
                   )
                 }),
                 allowsMultiselect: false
+              }),
+              App.createDUISwitch({
+                id: "dynamic_domain",
+                label: "Enable Dynamic Domain Selection",
+                value: App.createDUIBinding({
+                  get: () => getDynamicDomainSwitch(stateManager),
+                  set: async (newValue) => await stateManager.store(
+                    "is_dynamic_domain",
+                    newValue
+                  )
+                })
               })
             ]
           })
@@ -3248,7 +3262,7 @@ var _Sources = (() => {
   var BATO_DOMAIN_DEFAULT = "https://bato.to";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain test6.5",
+    name: "BatoTo Dynamic Domain test7",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
@@ -3275,7 +3289,7 @@ var _Sources = (() => {
             request.headers = {
               ...request.headers ?? {},
               ...{
-                referer: `${await this.stateManager.retrieve("domain") ?? BATO_DOMAIN_DEFAULT}/`,
+                referer: `${await this.stateManager.retrieve("selected_domain") ?? BATO_DOMAIN_DEFAULT}/`,
                 "user-agent": await this.requestManager.getDefaultUserAgent()
               }
             };
@@ -3333,8 +3347,17 @@ var _Sources = (() => {
         throw new Error("All domains failed");
       }
     }
-    async networkRequest(path, param) {
-      if (!await this.stateManager.retrieve("domain")) {
+    async networkRequestStatic(path, param) {
+      const domain = await this.stateManager.retrieve("selected_domain");
+      const request = App.createRequest({
+        url: `${domain}${path}`,
+        method: "GET",
+        param
+      });
+      return await this.requestManager.schedule(request, 1);
+    }
+    async networkRequestDynamic(path, param) {
+      if (!await this.stateManager.retrieve("dynamic_domain")) {
         let runCount = 0;
         const totalRaceResults = [];
         while (runCount < 3) {
@@ -3368,7 +3391,7 @@ var _Sources = (() => {
         }
         throw new Error("All domains failed during race attempts");
       }
-      const cachedDomain = await this.stateManager.retrieve("domain") ?? await BTDomains.getDefault();
+      const cachedDomain = await this.stateManager.retrieve("dynamic_domain");
       const cachedReqStart = Date.now();
       try {
         console.log(`[TESTLOG-TIMING] Starting request to ${cachedDomain}`);
@@ -3434,6 +3457,20 @@ var _Sources = (() => {
           console.log(`[TESTLOG-ERROR] Reasons: ${aggregateError?.errors?.map((e) => e.message).join(", ") || "Unknown"}`);
           throw new Error("All domains failed");
         }
+      }
+    }
+    async networkRequest(path, param) {
+      if (await this.stateManager.retrieve("is_dynamic_domain")) {
+        return await this.networkRequestDynamic(path, param);
+      } else {
+        if (!await this.stateManager.retrieve("selected_domain")) {
+          await this.stateManager.store("selected_domain", await BTDomains.getDefault()[0]);
+        }
+        await this.stateManager.store(
+          "dynamic_domain",
+          null
+        );
+        return await this.networkRequestStatic(path, param);
       }
     }
     async getSourceMenu() {
@@ -3544,11 +3581,12 @@ Please go to the homepage of <${_BatoTo.name}> and press the cloud icon.`
       }
     }
     async getCloudflareBypassRequestAsync() {
+      const domain = await this.stateManager.retrieve("is_dynamic_domain") ? await this.stateManager.retrieve("dynamic_domain") ?? (await BTDomains.getDefault())[0] : await this.stateManager.retrieve("selected_domain") ?? (await BTDomains.getDefault())[0];
       return App.createRequest({
-        url: await this.stateManager.retrieve("domain") ?? (await BTDomains.getDefault())[0],
+        url: domain,
         method: "GET",
         headers: {
-          referer: `${await this.stateManager.retrieve("domain") ?? (await BTDomains.getDefault())[0]}/`,
+          referer: `${domain}/`,
           "user-agent": await this.requestManager.getDefaultUserAgent()
         }
       });
