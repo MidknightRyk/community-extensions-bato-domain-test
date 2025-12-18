@@ -715,7 +715,7 @@ interface BTDomain {
 
 class BTDomainsClass {
     Domains: BTDomain[] = [
-        { name: 'bato.to', url: 'https://bato.to'},
+        // { name: 'bato.to', url: 'https://bato.to'},
         { name: 'wto.to', url: 'https://wto.to', default: true },
         { name: 'mto.to', url: 'https://mto.to' },
         { name: 'hto.to', url: 'https://hto.to' },

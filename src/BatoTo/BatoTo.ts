@@ -44,7 +44,7 @@ const BATO_DOMAIN_DEFAULT = 'https://bato.to'
 
 export const BatoToInfo: SourceInfo = {
     version: '3.1.7',
-    name: 'BatoTo Dynamic Domain test7.5.3',
+    name: 'BatoTo Dynamic Domain test7.5.4',
     icon: 'icon.png',
     author: 'niclimcy',
     authorWebsite: 'https://github.com/niclimcy',

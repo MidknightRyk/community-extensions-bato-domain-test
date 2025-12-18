@@ -90,17 +90,11 @@ export const languageSettings = (
 
 const getSelectedDomain = async (
     stateManager: SourceStateManager
-): Promise<string[]> => {
+): Promise<string> => {
     return (
-        (await stateManager.retrieve('selected_domain')) ?? BTDomains.getDefault()
+        (await stateManager.retrieve('selected_domain')) ?? BTDomains.getDefault()[0]
     )
 }
-
-// const getDynamicDomainSwitch = async (
-//     stateManager: SourceStateManager
-// ): Promise<boolean> => {
-//     return (await stateManager.retrieve('is_dynamic_domain')) ?? false
-// }
 
 export const domainSettings = (stateManager: SourceStateManager): DUINavigationButton => {
     return App.createDUINavigationButton({
@@ -145,8 +139,7 @@ export const resetSettings = (stateManager: SourceStateManager): DUIButton => {
                 stateManager.store('languages', BTLanguages.getDefault()),
                 stateManager.store('language_home_filter', false),
                 stateManager.store('language_search_filter', false),
-                stateManager.store('selected_domain', BTDomains.getDefault())
-                // stateManager.store('is_dynamic_domain', false)
+                stateManager.store('selected_domain', BTDomains.getDefault()[0])
             ])
         }
     })
