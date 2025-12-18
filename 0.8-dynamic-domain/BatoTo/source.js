@@ -3195,8 +3195,8 @@ var _Sources = (() => {
       })
     });
   };
-  var getSelectedDomain = async (stateManager) => {
-    return await stateManager.retrieve("selected_domain") ?? BTDomains.getDefault()[0];
+  var getDomains = async (stateManager) => {
+    return await stateManager.retrieve("domains") ?? BTDomains.getDefault();
   };
   var domainSettings = (stateManager) => {
     return App.createDUINavigationButton({
@@ -3205,19 +3205,19 @@ var _Sources = (() => {
       form: App.createDUIForm({
         sections: async () => [
           App.createDUISection({
-            id: "domain_settings",
-            footer: "Use this to change the source domain selection to dynamic instead of a fixed domain",
+            id: "content",
+            footer: "Use this to change the source domain to one that is not down.",
             isHidden: false,
             rows: async () => [
               App.createDUISelect({
-                id: "selected_domain",
-                label: "Selected Domain",
+                id: "domains",
+                label: "Domains",
                 options: BTDomains.getBTDomainList(),
                 labelResolver: async (option) => BTDomains.getName(option),
                 value: App.createDUIBinding({
-                  get: () => getSelectedDomain(stateManager),
+                  get: () => getDomains(stateManager),
                   set: async (newValue) => await stateManager.store(
-                    "selected_domain",
+                    "domains",
                     newValue
                   )
                 }),
@@ -3238,7 +3238,7 @@ var _Sources = (() => {
           stateManager.store("languages", BTLanguages.getDefault()),
           stateManager.store("language_home_filter", false),
           stateManager.store("language_search_filter", false),
-          stateManager.store("selected_domain", BTDomains.getDefault()[0])
+          stateManager.store("domains", BTDomains.getDefault())
         ]);
       }
     });
@@ -3248,7 +3248,7 @@ var _Sources = (() => {
   var BATO_DOMAIN_DEFAULT = "https://bato.to";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain test7.5.4",
+    name: "BatoTo Dynamic Domain test7.5.5",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
