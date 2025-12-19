@@ -44,7 +44,8 @@ const BATO_DOMAIN_DEFAULT = BTDomains.getDefault()[0] ?? 'https://bato.to'
 
 export const BatoToInfo: SourceInfo = {
     version: '3.1.7',
-    name: 'BatoTo Dynamic 1.1',
+    name: 'BatoTo Dynamic 1.2',
+    //name: 'BatoTo Test 1.1',
     icon: 'icon.png',
     author: 'niclimcy',
     authorWebsite: 'https://github.com/niclimcy',
@@ -81,7 +82,6 @@ implements
         interceptor: {
             interceptRequest: async (request: Request): Promise<Request> => {
                 const selectedDomain = await this.stateManager.retrieve('selected_domain')
-                console.log(`[TESTLOG-REQUEST] Using selected_domain: ${selectedDomain} Default domain: ${BATO_DOMAIN_DEFAULT}`)
                 request.headers = {
                     ...(request.headers ?? {}),
                     ...{
@@ -300,15 +300,14 @@ implements
 
     async networkRequest(path:string, param?:string): Promise<Response> {
 
-        if (await this.stateManager.retrieve('is_dynamic_domain') ?? false) {
-            return await this.networkRequestDynamic(path, param)
-        } else {
+        if (!await this.stateManager.retrieve('is_dynamic_domain')) {
             await this.stateManager.store(
                 'dynamic_domain',
-                null
+                await this.stateManager.retrieve('selected_domain') ?? BATO_DOMAIN_DEFAULT
             )
             return await this.networkRequestStatic(path, param)
-        }
+        } 
+        return await this.networkRequestDynamic(path, param)
     }
 
     async getSourceMenu(): Promise<DUISection> {
@@ -459,13 +458,16 @@ implements
     }
 
     async getCloudflareBypassRequestAsync(): Promise<Request> {
-        let domain
-        if (await this.stateManager.retrieve('is_dynamic_domain')) {
-            domain = await this.stateManager.retrieve('dynamic_domain')
-        } else {
+        let domain: string
+        const isDynamic = await this.stateManager.retrieve('is_dynamic_domain') ?? false
+        if (!isDynamic) {
             const tmpDomain = await this.stateManager.retrieve('selected_domain')
             domain = tmpDomain ? typeof tmpDomain === 'string' ? tmpDomain : tmpDomain[0] : BATO_DOMAIN_DEFAULT
+        } else {
+            await this.networkRequest('/') // Trigger domain selection and storage
+            domain = await this.stateManager.retrieve('dynamic_domain') ?? BATO_DOMAIN_DEFAULT
         }
+
         return App.createRequest({
             url: domain,
             method: 'GET',
