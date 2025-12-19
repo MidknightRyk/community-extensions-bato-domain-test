@@ -169,44 +169,45 @@ implements
     }
 
     async networkRequestDynamic(path:string, param?:string): Promise<Response> {
-        if (!await this.stateManager.retrieve('dynamic_domain')) {
-            let runCount = 0
-            const totalRaceResults: {domain: string, domainTime: number[]}[] = []
-            while (runCount < 3) {
-                try {
-                    const raceResults = await this.domainRace()
-                    raceResults.forEach(result => {
-                        const existing = totalRaceResults.find(r => r.domain === result.domain)
-                        if (existing) {
-                            existing.domainTime.push(result.domainTime)
-                        } else {
-                            totalRaceResults.push({domain: result.domain, domainTime:  [result.domainTime]})
-                        }
-                    })
-                    runCount++
-                } catch (error: any) {
-                    // Either all domains failed or some other (mystical) error occurred
-                    console.log(`[TESTLOG-ERROR] Domain race attempt ${runCount + 1} failed with error: ${error?.message || String(error)}`)
-                    //TODO: Decide what to do if all domains fail during a race
-                    break
-                }
-            }
-            if (totalRaceResults.length > 0) {
-                const medianTimes = totalRaceResults.map(result => { return {
-                    domain: result.domain,
-                    medianTime: result.domainTime.filter(t => t >= 0).sort((a, b) => a - b)[Math.floor(result.domainTime.filter(t => t >= 0).length / 2)] || Number.MAX_SAFE_INTEGER
-                }})
-                medianTimes.sort((a, b) => a.medianTime - b.medianTime)
-                const bestDomain = medianTimes[0]?.domain
-                console.log(`[TESTLOG-INFO] Selected best domain: ${bestDomain} with median time: ${medianTimes[0]?.medianTime}ms`)
-                await this.stateManager.store('domain', bestDomain)
-            }
+        // NOTE: temperary disabling race to test other functionalities
+        // if (!await this.stateManager.retrieve('dynamic_domain')) {
+        //     let runCount = 0
+        //     const totalRaceResults: {domain: string, domainTime: number[]}[] = []
+        //     while (runCount < 3) {
+        //         try {
+        //             const raceResults = await this.domainRace()
+        //             raceResults.forEach(result => {
+        //                 const existing = totalRaceResults.find(r => r.domain === result.domain)
+        //                 if (existing) {
+        //                     existing.domainTime.push(result.domainTime)
+        //                 } else {
+        //                     totalRaceResults.push({domain: result.domain, domainTime:  [result.domainTime]})
+        //                 }
+        //             })
+        //             runCount++
+        //         } catch (error: any) {
+        //             // Either all domains failed or some other (mystical) error occurred
+        //             console.log(`[TESTLOG-ERROR] Domain race attempt ${runCount + 1} failed with error: ${error?.message || String(error)}`)
+        //             //TODO: Decide what to do if all domains fail during a race
+        //             break
+        //         }
+        //     }
+        //     if (totalRaceResults.length > 0) {
+        //         const medianTimes = totalRaceResults.map(result => { return {
+        //             domain: result.domain,
+        //             medianTime: result.domainTime.filter(t => t >= 0).sort((a, b) => a - b)[Math.floor(result.domainTime.filter(t => t >= 0).length / 2)] || Number.MAX_SAFE_INTEGER
+        //         }})
+        //         medianTimes.sort((a, b) => a.medianTime - b.medianTime)
+        //         const bestDomain = medianTimes[0]?.domain
+        //         console.log(`[TESTLOG-INFO] Selected best domain: ${bestDomain} with median time: ${medianTimes[0]?.medianTime}ms`)
+        //         await this.stateManager.store('domain', bestDomain)
+        //     }
 
-            // All domains failed during race attempts
-            throw new Error('All domains failed during race attempts')
-        }
+        //     // All domains failed during race attempts
+        //     throw new Error('All domains failed during race attempts')
+        // }
 
-        const cachedDomain: string = await this.stateManager.retrieve('dynamic_domain')
+        const cachedDomain: string = await this.stateManager.retrieve('dynamic_domain') ?? BATO_DOMAIN_DEFAULT
         const cachedReqStart = Date.now()
 
         try {
@@ -458,9 +459,13 @@ implements
     }
 
     async getCloudflareBypassRequestAsync(): Promise<Request> {
-        const domain = ((await this.stateManager.retrieve('is_dynamic_domain')) ?? false
-            ? await this.stateManager.retrieve('dynamic_domain')
-            : (await this.stateManager.retrieve('selected_domain'))) ?? BATO_DOMAIN_DEFAULT
+        let domain
+        if (await this.stateManager.retrieve('is_dynamic_domain')) {
+            domain = await this.stateManager.retrieve('dynamic_domain')
+        } else {
+            const tmpDomain = await this.stateManager.retrieve('selected_domain')
+            domain = tmpDomain ? typeof tmpDomain === 'string' ? tmpDomain : tmpDomain[0] : BATO_DOMAIN_DEFAULT
+        }
         return App.createRequest({
             url: domain,
             method: 'GET',
