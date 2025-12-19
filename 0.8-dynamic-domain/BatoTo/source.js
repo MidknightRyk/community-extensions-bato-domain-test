@@ -3265,7 +3265,7 @@ var _Sources = (() => {
   var BATO_DOMAIN_DEFAULT = BTDomains.getDefault()[0] ?? "https://bato.to";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic 1.0",
+    name: "BatoTo Dynamic 1.1",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
