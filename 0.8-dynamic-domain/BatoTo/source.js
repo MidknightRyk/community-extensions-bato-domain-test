@@ -3213,21 +3213,23 @@ var _Sources = (() => {
             isHidden: false,
             rows: async () => [
               App.createDUISelect({
-                id: "domains",
+                id: "selected_domain",
                 label: "Selected Domain",
                 options: BTDomains.getBTDomainList(),
                 labelResolver: async (option) => BTDomains.getName(option),
                 value: App.createDUIBinding({
                   get: () => getSelectedDomain(stateManager),
-                  set: async (newValue) => await stateManager.store(
-                    "selected_domain",
-                    newValue
-                  )
+                  set: async (newValue) => {
+                    await stateManager.store(
+                      "selected_domain",
+                      newValue
+                    );
+                  }
                 }),
                 allowsMultiselect: false
               }),
               App.createDUISwitch({
-                id: "dynamic_domain",
+                id: "is_dynamic_domain",
                 label: "Enable Dynamic Domain Selection",
                 value: App.createDUIBinding({
                   get: () => getDynamicDomainSwitch(stateManager),
@@ -3252,17 +3254,18 @@ var _Sources = (() => {
           stateManager.store("languages", BTLanguages.getDefault()),
           stateManager.store("language_home_filter", false),
           stateManager.store("language_search_filter", false),
-          stateManager.store("domains", BTDomains.getDefault())
+          stateManager.store("selected_domain", [BTDomains.getDefault()]),
+          stateManager.store("is_dynamic_domain", false)
         ]);
       }
     });
   };
 
   // src/BatoTo/BatoTo.ts
-  var BATO_DOMAIN_DEFAULT = "https://bato.to";
+  var BATO_DOMAIN_DEFAULT = BTDomains.getDefault()[0] ?? "https://bato.to";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic Domain test7.5.9",
+    name: "BatoTo Dynamic 1.0",
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
@@ -3283,13 +3286,15 @@ var _Sources = (() => {
       this.stateManager = App.createSourceStateManager();
       this.requestManager = App.createRequestManager({
         requestsPerSecond: 4,
-        requestTimeout: 5e3,
+        requestTimeout: 15e3,
         interceptor: {
           interceptRequest: async (request) => {
+            const selectedDomain = await this.stateManager.retrieve("selected_domain");
+            console.log(`[TESTLOG-REQUEST] Using selected_domain: ${selectedDomain} Default domain: ${BATO_DOMAIN_DEFAULT}`);
             request.headers = {
               ...request.headers ?? {},
               ...{
-                referer: `${(await this.stateManager.retrieve("selected_domain"))[0] ?? BATO_DOMAIN_DEFAULT}/`,
+                referer: `${selectedDomain ?? BATO_DOMAIN_DEFAULT}/`,
                 "user-agent": await this.requestManager.getDefaultUserAgent()
               }
             };
@@ -3348,7 +3353,7 @@ var _Sources = (() => {
       }
     }
     async networkRequestStatic(path, param) {
-      const domain = (await this.stateManager.retrieve("selected_domain"))[0];
+      const domain = await this.stateManager.retrieve("selected_domain") ?? BATO_DOMAIN_DEFAULT;
       const request = App.createRequest({
         url: `${domain}${path}`,
         method: "GET",
@@ -3460,12 +3465,9 @@ var _Sources = (() => {
       }
     }
     async networkRequest(path, param) {
-      if (await this.stateManager.retrieve("dynamic_domain") ?? false) {
+      if (await this.stateManager.retrieve("is_dynamic_domain") ?? false) {
         return await this.networkRequestDynamic(path, param);
       } else {
-        if (!await this.stateManager.retrieve("selected_domain")) {
-          await this.stateManager.store("selected_domain", await BTDomains.getDefault());
-        }
         await this.stateManager.store(
           "dynamic_domain",
           null
@@ -3581,7 +3583,7 @@ Please go to the homepage of <${_BatoTo.name}> and press the cloud icon.`
       }
     }
     async getCloudflareBypassRequestAsync() {
-      const domain = (await this.stateManager.retrieve("dynamic_domain") ?? false ? await this.stateManager.retrieve("dynamic_domain") : (await this.stateManager.retrieve("selected_domain"))[0]) ?? (await BTDomains.getDefault())[0];
+      const domain = (await this.stateManager.retrieve("is_dynamic_domain") ?? false ? await this.stateManager.retrieve("dynamic_domain") : await this.stateManager.retrieve("selected_domain")) ?? BATO_DOMAIN_DEFAULT;
       return App.createRequest({
         url: domain,
         method: "GET",
