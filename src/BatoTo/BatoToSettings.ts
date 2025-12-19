@@ -159,7 +159,7 @@ export const resetSettings = (stateManager: SourceStateManager): DUIButton => {
                 stateManager.store('languages', BTLanguages.getDefault()),
                 stateManager.store('language_home_filter', false),
                 stateManager.store('language_search_filter', false),
-                stateManager.store('selected_domain', [BTDomains.getDefault()]),
+                stateManager.store('selected_domain', BTDomains.getDefault()),
                 stateManager.store('is_dynamic_domain', false)
             ])
         }
