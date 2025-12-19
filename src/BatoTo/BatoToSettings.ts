@@ -114,23 +114,24 @@ export const domainSettings = (stateManager: SourceStateManager): DUINavigationB
                     isHidden: false,
                     rows: async () => [
                         App.createDUISelect({
-                            id: 'domains',
+                            id: 'selected_domain',
                             label: 'Selected Domain',
                             options: BTDomains.getBTDomainList(),
                             labelResolver: async (option) =>
                                 BTDomains.getName(option),
                             value: App.createDUIBinding({
                                 get: () => getSelectedDomain(stateManager),
-                                set: async (newValue) =>
+                                set: async (newValue) =>{
                                     await stateManager.store(
                                         'selected_domain',
                                         newValue
                                     )
+                                }
                             }),
                             allowsMultiselect: false
                         }),
                         App.createDUISwitch({
-                            id: 'dynamic_domain',
+                            id: 'is_dynamic_domain',
                             label: 'Enable Dynamic Domain Selection',
                             value: App.createDUIBinding({
                                 get: () =>
@@ -158,7 +159,8 @@ export const resetSettings = (stateManager: SourceStateManager): DUIButton => {
                 stateManager.store('languages', BTLanguages.getDefault()),
                 stateManager.store('language_home_filter', false),
                 stateManager.store('language_search_filter', false),
-                stateManager.store('domains', BTDomains.getDefault())
+                stateManager.store('selected_domain', [BTDomains.getDefault()]),
+                stateManager.store('is_dynamic_domain', false)
             ])
         }
     })
