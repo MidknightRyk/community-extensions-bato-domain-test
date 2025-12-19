@@ -438,18 +438,19 @@ implements
     }
 
     async getCloudflareBypassRequestAsync(): Promise<Request> {
-        let domain: string
+        let tmpDomain: string | string[] | null
         const isDynamic = await this.stateManager.retrieve('is_dynamic_domain') ?? false
         if (!isDynamic) {
-            const tmpDomain = await this.stateManager.retrieve('selected_domain')
-            domain = tmpDomain ? typeof tmpDomain === 'string' ? tmpDomain : tmpDomain[0] : BATO_DOMAIN_DEFAULT
+            tmpDomain = await this.stateManager.retrieve('selected_domain')
         } else {
             await this.networkRequest('/') // Trigger domain selection and storage
-            domain = await this.stateManager.retrieve('dynamic_domain') ?? BATO_DOMAIN_DEFAULT
+            tmpDomain = await this.stateManager.retrieve('dynamic_domain')
+
         }
+        const domain = tmpDomain ? (typeof tmpDomain === 'string' ? tmpDomain : tmpDomain[0]) : BATO_DOMAIN_DEFAULT
 
         return App.createRequest({
-            url: domain,
+            url: domain ?? BATO_DOMAIN_DEFAULT,
             method: 'GET',
             headers: {
                 referer: `${domain}/`,
