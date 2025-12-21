@@ -2892,7 +2892,8 @@ var _Sources = (() => {
         { name: "zbato.com", url: "https://zbato.com" },
         { name: "xbato.org", url: "https://xbato.org" },
         { name: "xbato.net", url: "https://xbato.net" },
-        { name: "xbato.com", url: "https://xbato.com" }
+        { name: "xbato.com", url: "https://xbato.com" },
+        { name: "bato.cx", url: "https://bato.cx" }
       ];
     }
     getBTDomainList() {
@@ -3036,7 +3037,7 @@ var _Sources = (() => {
     });
     const popularSection_Array = [];
     for (const manga of $2(".home-popular .col.item").toArray()) {
-      const image = $2("img", manga).first().attr("src") ?? "";
+      const image = $2("img", manga).first().attr("src")?.replace("https://k", "https://n") ?? "";
       const title = $2(".item-title", manga).text().trim() ?? "";
       const id = $2("a", manga).attr("href")?.replace("/series/", "")?.trim().split("/")[0] ?? "";
       const btcode = $2("em", manga).attr("data-lang");
@@ -3054,7 +3055,7 @@ var _Sources = (() => {
     sectionCallback(popularSection);
     const latestSection_Array = [];
     for (const manga of $2(".series-list .col.item").toArray()) {
-      const image = $2("img", manga).attr("src") ?? "";
+      const image = $2("img", manga).attr("src")?.replace("https://k", "https://n") ?? "";
       const title = $2(".item-title", manga).text().trim() ?? "";
       const id = $2("a", manga).attr("href")?.replace("/series/", "")?.trim().split("/")[0] ?? "";
       const btcode = $2("em", manga).attr("data-lang");
@@ -3080,7 +3081,7 @@ var _Sources = (() => {
       const btcode = $2("em", obj).attr("data-lang");
       const lang = btcode ? BTLanguages.getLangCode(btcode) : "\u{1F1EC}\u{1F1E7}";
       const subtitle = lang + " " + $2(".visited", obj).text().trim();
-      const image = $2("img", obj).attr("src") ?? "";
+      const image = $2("img", obj).attr("src")?.replace("https://k", "https://n") ?? "";
       if (!id || !title || collectedIds.includes(id)) continue;
       manga.push(App.createPartialSourceManga({
         image,
@@ -3110,7 +3111,7 @@ var _Sources = (() => {
       const btcode = $2("em", obj).attr("data-lang") ?? "en,en_us";
       const lang = btcode ? BTLanguages.getLangCode(btcode) : "\u{1F1EC}\u{1F1E7}";
       const subtitle = lang + " " + $2(".visited", obj).text().trim();
-      const image = $2("img", obj).attr("src") ?? "";
+      const image = $2("img", obj).attr("src")?.replace("https://k", "https://n") ?? "";
       if (!id || !title) continue;
       if (langFilter && !langs.includes(btcode)) continue;
       mangas.push(App.createPartialSourceManga({
@@ -3265,8 +3266,8 @@ var _Sources = (() => {
   var BATO_DOMAIN_DEFAULT = BTDomains.getDefault()[0] ?? "https://bato.to";
   var BatoToInfo = {
     version: "3.1.7",
-    name: "BatoTo Dynamic 1.3",
-    //name: 'BatoTo Test 1.5',
+    name: "BatoTo Dynamic 1.4",
+    // name: 'BatoTo Test 1.5',
     icon: "icon.png",
     author: "niclimcy",
     authorWebsite: "https://github.com/niclimcy",
