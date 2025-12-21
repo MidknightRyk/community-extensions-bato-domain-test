@@ -741,7 +741,9 @@ class BTDomainsClass {
         { name: 'zbato.com', url: 'https://zbato.com' },
         { name: 'xbato.org', url: 'https://xbato.org' },
         { name: 'xbato.net', url: 'https://xbato.net' },
-        { name: 'xbato.com', url: 'https://xbato.com' }
+        { name: 'xbato.com', url: 'https://xbato.com' },
+        { name: 'bato.cx', url: 'https://bato.cx' }
+        
     ]
 
     getBTDomainList(): string[] {

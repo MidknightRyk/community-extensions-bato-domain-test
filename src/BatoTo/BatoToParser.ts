@@ -170,7 +170,7 @@ export const parseHomeSections = ($: CheerioStatic, sectionCallback: (section: H
     // Popular Updates
     const popularSection_Array: PartialSourceManga[] = []
     for (const manga of $('.home-popular .col.item').toArray()) {
-        const image: string = $('img', manga).first().attr('src') ?? ''
+        const image: string = ($('img', manga).first().attr('src'))?.replace('https://k', 'https://n') ?? ''
         const title: string = $('.item-title', manga).text().trim() ?? ''
         const id = $('a', manga).attr('href')?.replace('/series/', '')?.trim().split('/')[0] ?? ''
         const btcode = $('em', manga).attr('data-lang')
@@ -191,7 +191,7 @@ export const parseHomeSections = ($: CheerioStatic, sectionCallback: (section: H
     // Latest Releases
     const latestSection_Array: PartialSourceManga[] = []
     for (const manga of $('.series-list .col.item').toArray()) {
-        const image: string = $('img', manga).attr('src') ?? ''
+        const image: string = ($('img', manga).attr('src'))?.replace('https://k', 'https://n') ?? ''
         const title: string = $('.item-title', manga).text().trim() ?? ''
         const id = $('a', manga).attr('href')?.replace('/series/', '')?.trim().split('/')[0] ?? ''
         const btcode = $('em', manga).attr('data-lang')
@@ -220,7 +220,7 @@ export const parseViewMore = ($: CheerioStatic): PartialSourceManga[] => {
         const btcode = $('em', obj).attr('data-lang')
         const lang: string = btcode ? BTLanguages.getLangCode(btcode) : '🇬🇧'
         const subtitle = lang + ' ' + $('.visited', obj).text().trim()
-        const image = $('img', obj).attr('src') ?? ''
+        const image = ($('img', obj).attr('src'))?.replace('https://k', 'https://n') ?? ''
 
         if (!id || !title || collectedIds.includes(id)) continue
         manga.push(App.createPartialSourceManga({
@@ -255,7 +255,7 @@ export const parseSearch = ($: CheerioStatic, langFilter: boolean, langs: string
         const btcode = $('em', obj).attr('data-lang') ?? 'en,en_us'
         const lang: string = btcode ? BTLanguages.getLangCode(btcode) : '🇬🇧'
         const subtitle = lang + ' ' + $('.visited', obj).text().trim()
-        const image = $('img', obj).attr('src') ?? ''
+        const image = ($('img', obj).attr('src'))?.replace('https://k', 'https://n') ?? ''
 
         if (!id || !title) continue
         if (langFilter && !langs.includes(btcode)) continue
