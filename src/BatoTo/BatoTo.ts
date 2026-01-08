@@ -311,10 +311,11 @@ implements
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
+        const tmpDomain = await this.stateManager.retrieve('selected_domain')
         const response = await this.networkRequest(`/title/${mangaId}`)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
-        return parseMangaDetails($, mangaId)
+        return parseMangaDetails($, tmpDomain ?? BATO_DOMAIN_DEFAULT, mangaId)
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {

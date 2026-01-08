@@ -17,29 +17,36 @@ import {
 import * as CryptoJS from './external/crypto-js.min' // 4.2.0
 import entities = require('entities')
 
-export const parseMangaDetails = ($: CheerioStatic, mangaId: string): SourceManga => {
+export const parseMangaDetails = ($: CheerioStatic, baseURL: string, mangaId: string ): SourceManga => {
+    const imgDiv = $('[q\\:key="fU_13"]').first()
     const titles: string[] = []
 
-    titles.push(decodeHTMLEntity($('a', $('.item-title')).text().trim() ?? ''))
-    const altTitles = $('.alias-set').text().trim().split('/')
+    titles.push($('a', imgDiv).first().text().trim() ?? '')
+    const altTitleArray = $('[q\\:key="k6_1"]', $('[q\\:key="k6_2"]').first()).next('span').toArray()
+    const altTitles = altTitleArray.map((e: CheerioElement) => $(e).text().trim()).filter((title: string) => title !== '/')
     for (const title of altTitles) {
-        titles.push(decodeHTMLEntity(title))
+        console.log('PUSHING TITLE: ' + title)
+        titles.push(title)
     }
 
-    const description = decodeHTMLEntity($('.limit-html').text().trim() ?? '')
+    const descriptionArray = $('[q\\:key="0a_9"] > .limit-html').toArray().map((e: CheerioElement) => $(e).text().trim())
+    const description = decodeHTMLEntity(descriptionArray.join('\n\n'))
 
-    const authorElement = $('div.attr-item b:contains("Authors")').next('span')
-    const author = authorElement.length ? authorElement.children().map((_: number, e: CheerioElement) => {
-        return $(e).text().trim()
-    }).toArray().join(', ') : ''
 
-    const artistElement = $('div.attr-item b:contains("Artists")').next('span')
-    const artist = artistElement.length ? artistElement.children().map((_: number, e: CheerioElement) => {
-        return $(e).text().trim()
-    }).toArray().join(', ') : ''
+    const authorRaw = $('a', '[q\\:key="k6_4"]').toArray()
+
+    const authorArr = []
+    const artistArr = []
+    for (const authorElem of authorRaw) {
+        const authorName = $(authorElem).text().trim()
+        authorName.includes('(Art)') ? artistArr.push(authorName.replace('(Art)', '').trim()) : authorArr.push(authorName)
+    }
+
+    const authors = authorArr.join(', ')
+    const artists = artistArr.join(', ')
 
     const arrayTags: Tag[] = []
-    for (const tag of $('div.attr-item b:contains("Genres")').next('span').children().toArray()) {
+    for (const tag of $('[q\\:key="Ou_0"]', '[q\\:key="5P_2"]').toArray()) {
         const label = $(tag).text().trim()
         const id = encodeURI(BTGenres.getParam(label) ?? label)
 
@@ -48,7 +55,7 @@ export const parseMangaDetails = ($: CheerioStatic, mangaId: string): SourceMang
     }
     const tagSections: TagSection[] = [App.createTagSection({ id: '0', label: 'genres', tags: arrayTags.map(x => App.createTag(x)) })]
 
-    const rawStatus = $('div.attr-item b:contains("Upload status")').next('span').text().trim()
+    const rawStatus = $('span', '[q\\:key="0S_9"]').last().text().trim()
     let status = 'ONGOING'
     switch (rawStatus.toUpperCase()) {
         case 'ONGOING':
@@ -65,14 +72,16 @@ export const parseMangaDetails = ($: CheerioStatic, mangaId: string): SourceMang
             break
     }
 
+    const imgURL = baseURL + $('img', imgDiv).attr('src')
+
     return App.createSourceManga({
         id: mangaId,
         mangaInfo: App.createMangaInfo({
             titles: titles,
-            image: `mangaId=${mangaId}`,
+            image: imgURL,
             status: status,
-            author: author,
-            artist: artist,
+            author: authors,
+            artist: artists,
             tags: tagSections,
             desc: description
         })
@@ -129,22 +138,6 @@ export const parseChapterList = ($: CheerioStatic, mangaId: string): Chapter[] =
 }
 
 export const parseChapterDetails = ($: CheerioStatic, mangaId: string, chapterId: string): ChapterDetails => {
-    // Get all of the pages
-    // const scriptObj = $('script').toArray().find((obj: CheerioElement) => {
-    //     const data = obj.children[0]?.data ?? ''
-    //     return data.includes('batoPass') && data.includes('batoWord')
-    // })
-    // const script = scriptObj?.children[0]?.data ?? ''
-
-    // const batoPass = eval(script.match(/const\s+batoPass\s*=\s*(.*?);/)?.[1] ?? '').toString()
-    // const batoWord = script.match(/const\s+batoWord\s*=\s*"(.*)";/)?.[1] ?? ''
-    // const imgHttps = script.match(/const\s+imgHttps\s*=\s*(.*?);/)?.[1] ?? ''
-
-    // const imgList: string[] = JSON.parse(imgHttps).map((img: string) => img.replace('https://k', 'https://n'))
-    // const tknList: string[] = JSON.parse(CryptoJS.AES.decrypt(batoWord, batoPass).toString(CryptoJS.enc.Utf8))
-
-    // const pages = imgList.map((value: string, index: number) => `${value}?${tknList[index]}`)
-
     const pagesDivs = $('[q\\:key="6N_2"]').toArray()
 
     const pages: string[] = pagesDivs.map((pageDiv: CheerioElement) => {
