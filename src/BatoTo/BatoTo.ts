@@ -30,7 +30,7 @@ import {
     parseTags,
     parseThumbnailUrl,
     parseViewMore
-} from './BatoToParser'
+} from './BatoToParserV4'
 
 import { BTLanguages,
     BTDomains,
@@ -40,12 +40,12 @@ import { languageSettings,
     domainSettings,
     resetSettings } from './BatoToSettings'
 
-const BATO_DOMAIN_DEFAULT = BTDomains.getDefault()[0] ?? 'https://bato.to'
+const BATO_DOMAIN_DEFAULT = BTDomains.getDefault()[0] ?? 'https://bato.si'
 
 export const BatoToInfo: SourceInfo = {
     version: '3.1.7',
-    name: 'BatoTo Dynamic 1.4',
-    // name: 'BatoTo Test 1.5',
+    // name: 'BatoTo DevDomain 1.0',
+    name: 'BatoTo Dev Test 1.5',
     icon: 'icon.png',
     author: 'niclimcy',
     authorWebsite: 'https://github.com/niclimcy',
@@ -100,6 +100,8 @@ implements
             interceptResponse: async (
                 response: Response
             ): Promise<Response> => {
+                console.log(`[BatoTo] ${response.request.url} - ${response.status}`)
+                console.log(`[BatoTo-DATA] ${response.data?.toString()}`)
                 return response
             }
         }
@@ -336,10 +338,11 @@ implements
     async getHomePageSections(
         sectionCallback: (section: HomeSection) => void
     ): Promise<void> {
+        const tmpDomain = await this.stateManager.retrieve('selected_domain')
         const response = await this.networkRequest('/')
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
-        parseHomeSections($, sectionCallback)
+        parseHomeSections($, tmpDomain ?? BATO_DOMAIN_DEFAULT, sectionCallback)
     }
 
     async getViewMoreItems(
