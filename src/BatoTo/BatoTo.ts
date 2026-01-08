@@ -307,18 +307,18 @@ implements
     }
 
     getMangaShareUrl(mangaId: string): string {
-        return `${BATO_DOMAIN_DEFAULT}/series/${mangaId}`
+        return `${BATO_DOMAIN_DEFAULT}/title/${mangaId}`
     }
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
-        const response = await this.networkRequest(`/series/${mangaId}`)
+        const response = await this.networkRequest(`/title/${mangaId}`)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         return parseMangaDetails($, mangaId)
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
-        const response = await this.networkRequest(`/series/${mangaId}`)
+        const response = await this.networkRequest(`/title/${mangaId}`)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         return parseChapterList($, mangaId)
@@ -328,7 +328,7 @@ implements
         mangaId: string,
         chapterId: string
     ): Promise<ChapterDetails> {
-        const response = await this.networkRequest(`/chapter/${chapterId}`)
+        const response = await this.networkRequest(`/title/${mangaId}/${chapterId}`)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         return parseChapterDetails($, mangaId, chapterId)
@@ -426,7 +426,7 @@ implements
     }
 
     async getThumbnailUrl(mangaId: string): Promise<string> {
-        const response = await this.networkRequest(`/series/${mangaId}`)
+        const response = await this.networkRequest(`/title/${mangaId}`)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         return parseThumbnailUrl($)

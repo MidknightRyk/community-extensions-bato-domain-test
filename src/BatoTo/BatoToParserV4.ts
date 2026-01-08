@@ -83,16 +83,17 @@ export const parseChapterList = ($: CheerioStatic, mangaId: string): Chapter[] =
     const chapters: Chapter[] = []
     let sortingIndex = 0
 
-    for (const chapter of $('div.episode-list div.main .item').toArray()) {
-        const title = $('b', chapter).text().trim()
-        const chapterId: string = $('a', chapter).attr('href')?.replace(/\/$/, '')?.split('/').pop() ?? ''
-        const group: string = $('a.ps-3 > span', chapter).text().trim()
+    for (const chapter of $('[q\\:key="N0_9"]').toArray()) {
+        const title = $('a', chapter).first().text().trim()
+        const chapterId: string = $('a', chapter).first().attr('href')?.replace(/\/$/, '')?.split('/').pop() ?? ''
+        const groupDiv = $('[q\\:key="00_1"]', chapter).first()
+        const group: string = $('a', groupDiv).last().text().trim()
         if (!chapterId) continue
 
         let language = BTLanguages.getLangCode($('em').attr('data-lang') ?? '')
         if (language === 'Unknown') language = '🇬🇧'
 
-        const timeAgo = $('i.ps-3', chapter).text().trim().split(' ')
+        const timeAgo = $('[q\\:key="ey_0"]', chapter).text().trim().split(' ')
         const chapNumRegex = title.match(/(\d+)(?:[-.]\d+)?/)
         let date = new Date(Date.now())
 
@@ -129,20 +130,28 @@ export const parseChapterList = ($: CheerioStatic, mangaId: string): Chapter[] =
 
 export const parseChapterDetails = ($: CheerioStatic, mangaId: string, chapterId: string): ChapterDetails => {
     // Get all of the pages
-    const scriptObj = $('script').toArray().find((obj: CheerioElement) => {
-        const data = obj.children[0]?.data ?? ''
-        return data.includes('batoPass') && data.includes('batoWord')
+    // const scriptObj = $('script').toArray().find((obj: CheerioElement) => {
+    //     const data = obj.children[0]?.data ?? ''
+    //     return data.includes('batoPass') && data.includes('batoWord')
+    // })
+    // const script = scriptObj?.children[0]?.data ?? ''
+
+    // const batoPass = eval(script.match(/const\s+batoPass\s*=\s*(.*?);/)?.[1] ?? '').toString()
+    // const batoWord = script.match(/const\s+batoWord\s*=\s*"(.*)";/)?.[1] ?? ''
+    // const imgHttps = script.match(/const\s+imgHttps\s*=\s*(.*?);/)?.[1] ?? ''
+
+    // const imgList: string[] = JSON.parse(imgHttps).map((img: string) => img.replace('https://k', 'https://n'))
+    // const tknList: string[] = JSON.parse(CryptoJS.AES.decrypt(batoWord, batoPass).toString(CryptoJS.enc.Utf8))
+
+    // const pages = imgList.map((value: string, index: number) => `${value}?${tknList[index]}`)
+
+    const pagesDivs = $('[q\\:key="6N_2"]').toArray()
+
+    const pages: string[] = pagesDivs.map((pageDiv: CheerioElement) => {
+        const imgUrl = $('img', pageDiv).attr('src') ?? ''
+        return imgUrl.replace('https://k', 'https://n')
     })
-    const script = scriptObj?.children[0]?.data ?? ''
 
-    const batoPass = eval(script.match(/const\s+batoPass\s*=\s*(.*?);/)?.[1] ?? '').toString()
-    const batoWord = script.match(/const\s+batoWord\s*=\s*"(.*)";/)?.[1] ?? ''
-    const imgHttps = script.match(/const\s+imgHttps\s*=\s*(.*?);/)?.[1] ?? ''
-
-    const imgList: string[] = JSON.parse(imgHttps).map((img: string) => img.replace('https://k', 'https://n'))
-    const tknList: string[] = JSON.parse(CryptoJS.AES.decrypt(batoWord, batoPass).toString(CryptoJS.enc.Utf8))
-
-    const pages = imgList.map((value: string, index: number) => `${value}?${tknList[index]}`)
 
     const chapterDetails = App.createChapterDetails({
         id: chapterId,
