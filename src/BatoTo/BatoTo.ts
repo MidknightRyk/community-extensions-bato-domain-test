@@ -189,9 +189,8 @@ implements
 
         try {
             const request = App.createRequest({
-                url: `${domain}${path}`,
-                method: 'GET',
-                param: param
+                url: `${domain}${path}${param ? param : ''}`,
+                method: 'GET'
             })
     
             return await this.requestManager.schedule(request, 1)}
@@ -354,10 +353,10 @@ implements
 
         switch (homepageSectionId) {
             case 'popular_updates':
-                param = `?sort=views_d.za&page=${page}`
+                param = `?sortby=field_score&page=${page}`
                 break
             case 'latest_releases':
-                param = `?sort=update.za&page=${page}`
+                param = `?sortby=field_update&page=${page}`
                 break
             default:
                 throw new Error(
@@ -371,11 +370,12 @@ implements
             (await this.stateManager.retrieve('languages')) ??
             BTLanguages.getDefault()
         param += langHomeFilter ? `&langs=${langs.join(',')}` : ''
+        const tmpDomain = await this.stateManager.retrieve('selected_domain')
 
-        const response = await this.networkRequest('/browse', param)
+        const response = await this.networkRequest('/comics', param)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
-        const manga = parseViewMore($)
+        const manga = parseViewMore($, tmpDomain ?? BATO_DOMAIN_DEFAULT)
 
         metadata = !isLastPage($) ? { page: page + 1 } : undefined
         return App.createPagedResults({

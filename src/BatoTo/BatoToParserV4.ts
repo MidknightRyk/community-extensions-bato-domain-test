@@ -212,17 +212,19 @@ export const parseHomeSections = ($: CheerioStatic, baseURL: string, sectionCall
     sectionCallback(latestSection)
 }
 
-export const parseViewMore = ($: CheerioStatic): PartialSourceManga[] => {
+export const parseViewMore = ($: CheerioStatic, baseURL: string): PartialSourceManga[] => {
     const manga: PartialSourceManga[] = []
     const collectedIds: string[] = []
 
-    for (const obj of $('.item', '#series-list').toArray()) {
-        const id = $('a', obj).attr('href')?.replace('/series/', '').trim().split('/')[0] ?? ''
-        const title = $('.item-title', obj).text()
+    for (const obj of $('[q\\:key="Fc_9"]').toArray()) {
+        const subDiv = $('[q\\:key="w7_8"]', obj).first()
+        const id = $('a', $('[q\\:key="Jg_4"]', obj)).attr('href')?.replace('/title/', '').trim().split('/')[0] ?? ''
+        const image = baseURL +($('img', obj).first().attr('src'))
+        const title = $('img', obj).first().attr('title')?.trim() ?? ''
         const btcode = $('em', obj).attr('data-lang')
         const lang: string = btcode ? BTLanguages.getLangCode(btcode) : '🇬🇧'
-        const subtitle = lang + ' ' + $('.visited', obj).text().trim()
-        const image = ($('img', obj).attr('src'))?.replace('https://k', 'https://n') ?? ''
+        const subtitle = lang + ' ' + $('a', subDiv).text().trim()
+
 
         if (!id || !title || collectedIds.includes(id)) continue
         manga.push(App.createPartialSourceManga({
