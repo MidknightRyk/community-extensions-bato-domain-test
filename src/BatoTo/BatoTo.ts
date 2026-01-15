@@ -184,13 +184,14 @@ implements
         }
     }
 
-    async networkRequestStatic(path:string, param?:string): Promise<Response> {
+    async networkRequestStatic(path:string, param?:string, data?: any): Promise<Response> {
         const domain = await this.stateManager.retrieve('selected_domain') ?? BATO_DOMAIN_DEFAULT
 
         try {
             const request = App.createRequest({
                 url: `${domain}${path}${param ? param : ''}`,
-                method: 'GET'
+                method: 'GET',
+                data: data ? data : undefined
             })
     
             return await this.requestManager.schedule(request, 1)}
@@ -199,7 +200,7 @@ implements
         }
     }
 
-    async networkRequestDynamic(path:string, param?:string): Promise<Response> {
+    async networkRequestDynamic(path:string, param?:string, data?: any): Promise<Response> {
         // NOTE: temperary disabling race to test other functionalities
         const cachedDomain = await this.stateManager.retrieve('dynamic_domain')
         if (!cachedDomain || cachedDomain === null) {
@@ -279,16 +280,16 @@ implements
         }
     }
 
-    async networkRequest(path:string, param?:string): Promise<Response> {
+    async networkRequest(path:string, param?:string, data?: any): Promise<Response> {
         const isDynamic = await this.stateManager.retrieve('is_dynamic_domain') ?? false
         if (!isDynamic) {
             await this.stateManager.store(
                 'dynamic_domain',
                 await this.stateManager.retrieve('selected_domain') ?? BATO_DOMAIN_DEFAULT
             )
-            return await this.networkRequestStatic(path, param)
+            return await this.networkRequestStatic(path, param, data)
         } 
-        return await this.networkRequestDynamic(path, param)
+        return await this.networkRequestDynamic(path, param, data)
     }
 
     async getSourceMenu(): Promise<DUISection> {
@@ -390,19 +391,11 @@ implements
         metadata: Metadata | undefined
     ): Promise<PagedResults> {
         const page: number = metadata?.page ?? 1
-        let path
 
-        // Regular search
-        if (query.title) {
-            path = `/v4x-search?word=${encodeURI(
-                query.title ?? ''
-            )}&page=${page}`
-            // Tag Search
-        } else {
-            path = `/browse?genres=${
-                query?.includedTags?.map((x: Tag) => x.id)[0]
-            }&page=${page}`
-        }
+        let path = `/v4x-search?word=${encodeURI(
+            query.title ?? ''
+        )}&page=${page}`
+        
 
         const langSearchFilter: boolean =
             (await this.stateManager.retrieve('language_search_filter')) ??
@@ -411,27 +404,95 @@ implements
             (await this.stateManager.retrieve('languages')) ??
             BTLanguages.getDefault()
 
-        const response = await this.networkRequest(path)
+        let response = await this.networkRequest(path)
         const $ = this.cheerio.load(response.data as string)
-        const manga = parseSearch($, langSearchFilter, langs)
+        //const scaffold = parseSearch($, langSearchFilter, langs)
 
-        metadata = !isLastPage($) ? { page: page + 1 } : undefined
+        //get search data
+        path = '/ap2'
+        const data = {
+            query: `query get_search_comic($select: Search_Comic_Select) {
+                get_search_comic(
+                  select: $select
+                ) {
+                  req_page req_size req_word
+                  new_page
+                  paging { 
+              total pages page init size skip limit prev next
+             }
+                  items {
+                    id data {
+                      id dbStatus isPublic name
+                      origLang tranLang
+                      urlPath urlCover600 urlCoverOri
+                      genres altNames authors artists
+                      is_hot is_new sfw_result
+                      score_val follows reviews comments_total
+                      chapterNode_up_to {
+                        id data {
+                          id dateCreate
+                          dbStatus isFinal sfw_result
+                          dname urlPath is_new
+                          userId userNode {
+                            id data {
+                              id name uniq avatarUrl urlPath
+                            }
+                          }
+                        }
+                      }
+                    }
+                    sser_follow
+                    sser_lastReadChap {
+                      date chapterNode {
+                        id data {
+                          id dbStatus isFinal sfw_result
+                          dname urlPath is_new
+                          userId userNode {
+                            id data {
+                              id name uniq avatarUrl urlPath
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }`,
+            variables: {
+                select: {
+                    word: query.title ?? '',
+                    sortby: null,
+                    page: page,
+                    size: 30
+                }
+            }
+        }
+
+        response = await this.networkRequest(path, undefined, data)
+        //$ = this.cheerio.load(response.data as string)
+        console.log(`[BatoTo-SEARCHDATA] ${response.data?.toString()}`)
+        const resData = JSON.parse(response.data ? response.data : '{get_search_comic: {}, items: []}')
+        const tmpDomain = await this.stateManager.retrieve('selected_domain')
+        const manga = parseSearch(resData.items, langSearchFilter, langs, tmpDomain ?? BATO_DOMAIN_DEFAULT)
+        
+
+        resData?.get_search_comic.paging.total === page ? { page: page + 1 } : undefined
         return App.createPagedResults({
             results: manga,
             metadata
         })
     }
 
-    async getSearchTags(): Promise<TagSection[]> {
-        return parseTags()
-    }
+    // async getSearchTags(): Promise<TagSection[]> {
+    //     return parseTags()
+    // }
 
-    async getThumbnailUrl(mangaId: string): Promise<string> {
-        const response = await this.networkRequest(`/title/${mangaId}`)
-        this.CloudFlareError(response.status)
-        const $ = this.cheerio.load(response.data as string)
-        return parseThumbnailUrl($)
-    }
+    // async getThumbnailUrl(mangaId: string): Promise<string> {
+    //     const response = await this.networkRequest(`/title/${mangaId}`)
+    //     this.CloudFlareError(response.status)
+    //     const $ = this.cheerio.load(response.data as string)
+    //     return parseThumbnailUrl($)
+    // }
 
     CloudFlareError(status: number): void {
         if (status == 503 || status == 403) {
@@ -453,7 +514,7 @@ implements
         }
         const domain = tmpDomain ? (typeof tmpDomain === 'string' ? tmpDomain : tmpDomain[0]) : BATO_DOMAIN_DEFAULT
 
-        return App.createRequest({
+        const req =  App.createRequest({
             url: domain ?? BATO_DOMAIN_DEFAULT,
             method: 'GET',
             headers: {
@@ -461,5 +522,10 @@ implements
                 'user-agent': await this.requestManager.getDefaultUserAgent()
             }
         })
+
+        console.log(`[BatoTo] Generated Cloudflare bypass request for domain: ${domain}`)
+        console.log(`[BatoTo-Request] ${JSON.stringify(req)}`)
+
+        return req
     }
 }

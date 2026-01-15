@@ -253,15 +253,20 @@ export const parseTags = (): TagSection[] => {
     return tagSections
 }
 
-export const parseSearch = ($: CheerioStatic, langFilter: boolean, langs: string[]): PartialSourceManga[] => {
+export const parseSearch = (items: any[], langFilter: boolean, langs: string[], baseUrl: string): PartialSourceManga[] => {
     const mangas: PartialSourceManga[] = []
-    for (const obj of $('.item', '#series-list').toArray()) {
-        const id = $('.item-cover', obj).attr('href')?.replace('/series/', '')?.trim().split('/')[0] ?? ''
-        const title: string = $('.item-title', obj).text() ?? ''
-        const btcode = $('em', obj).attr('data-lang') ?? 'en,en_us'
+
+    if (!items || items.length === 0) return mangas
+
+    for (const obj of items) {
+        const mangaData = obj.data
+        if (!mangaData) continue
+        const id = mangaData.urlPath ?? ''
+        const title: string = mangaData.name ?? ''
+        const btcode = mangaData.tranLang ?? 'en,en_us'
         const lang: string = btcode ? BTLanguages.getLangCode(btcode) : '🇬🇧'
-        const subtitle = lang + ' ' + $('.visited', obj).text().trim()
-        const image = ($('img', obj).attr('src'))?.replace('https://k', 'https://n') ?? ''
+        const subtitle = lang + ' ' + mangaData.chapterNode_up_to.data.dname
+        const image = baseUrl + mangaData.urlCover600
 
         if (!id || !title) continue
         if (langFilter && !langs.includes(btcode)) continue
