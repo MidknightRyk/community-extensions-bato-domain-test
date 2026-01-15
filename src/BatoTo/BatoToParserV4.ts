@@ -214,7 +214,7 @@ export const parseHomeSections = ($: CheerioStatic, baseURL: string, sectionCall
     sectionCallback(latestSection)
 }
 
-export const parseViewMore = (items: any[], baseURL: string): PartialSourceManga[] => {
+export const parseViewMore = (items: any[], langFilter: boolean, langs: string[], baseURL: string): PartialSourceManga[] => {
     const manga: PartialSourceManga[] = []
     const collectedIds: string[] = []
 
@@ -230,6 +230,8 @@ export const parseViewMore = (items: any[], baseURL: string): PartialSourceManga
 
 
         if (!id || !title || collectedIds.includes(id)) continue
+        if (langFilter && !langs.includes(btcode)) continue
+
         manga.push(App.createPartialSourceManga({
             image: image,
             title: decodeHTMLEntity(title),

@@ -229,6 +229,13 @@ implements
                 )
         }
 
+        const langSearchFilter: boolean =
+        (await this.stateManager.retrieve('language_search_filter')) ??
+        false
+        const langs: string[] =
+        (await this.stateManager.retrieve('languages')) ??
+        BTLanguages.getDefault()
+
         const response = await this.networkRequestPost(queryString, variable)
 
         this.CloudFlareError(response.status)
@@ -240,7 +247,7 @@ implements
         }
         const resData = (JSON.parse(response.data)).data
         const tmpDomain = await this.stateManager.retrieve('selected_domain')
-        const manga = parseViewMore(resData.get_latestReleases.items, tmpDomain ?? BATO_DOMAIN_DEFAULT)
+        const manga = parseViewMore(resData.get_latestReleases.items, langSearchFilter, langs, tmpDomain ?? BATO_DOMAIN_DEFAULT)
 
         metadata = resData.get_latestReleases.paging.next != 0 ? { page: page + 1 } : undefined
         return App.createPagedResults({
@@ -262,8 +269,6 @@ implements
             (await this.stateManager.retrieve('languages')) ??
             BTLanguages.getDefault()
 
-        // Could use language filter in search when V4 API has more than eng
-
         const queryString = BTQueries.getQuery('search')
         const variable ={
             select:{
@@ -276,7 +281,6 @@ implements
 
         const response = await this.networkRequestPost(queryString, variable)
 
-        console.log(`[BatoTo-SEARCHDATA] ${response.data?.toString()}`)
         if (!response.data) {
             return App.createPagedResults({
                 results: [],
@@ -295,9 +299,9 @@ implements
         })
     }
 
-    // async getSearchTags(): Promise<TagSection[]> {
-    //     return parseTags()
-    // }
+    async getSearchTags(): Promise<TagSection[]> {
+        return parseTags()
+    }
 
     // async getThumbnailUrl(mangaId: string): Promise<string> {
     //     const response = await this.networkRequest(`/title/${mangaId}`)
