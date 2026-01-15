@@ -2163,12 +2163,12 @@ var _Sources = (() => {
   var parseMangaDetails = ($, baseURL, mangaId) => {
     const imgDiv = $('[q\\:key="fU_13"]').first();
     const titles = [];
-    titles.push($("a", imgDiv).first().text().trim() ?? "");
+    titles.push(decodeHTMLEntity($("a", imgDiv).first().text().trim() ?? ""));
     const altTitleArray = $('[q\\:key="k6_1"]', $('[q\\:key="k6_2"]').first()).next("span").toArray();
     const altTitles = altTitleArray.map((e) => $(e).text().trim()).filter((title) => title !== "/");
     for (const title of altTitles) {
       console.log("PUSHING TITLE: " + title);
-      titles.push(title);
+      titles.push(decodeHTMLEntity(title));
     }
     const descriptionArray = $('[q\\:key="0a_9"] > .limit-html').toArray().map((e) => $(e).text().trim());
     const description = decodeHTMLEntity(descriptionArray.join("\n\n"));
@@ -2346,25 +2346,18 @@ var _Sources = (() => {
     }
     return manga;
   };
-  var parseTags = () => {
-    const arrayTags = [];
-    for (const label of BTGenres.getGenresList()) {
-      const id = encodeURI(BTGenres.getParam(label) ?? label);
-      if (!id || !label) continue;
-      arrayTags.push({ id, label });
-    }
-    const tagSections = [App.createTagSection({ id: "0", label: "genres", tags: arrayTags.map((x) => App.createTag(x)) })];
-    return tagSections;
-  };
-  var parseSearch = ($, langFilter, langs) => {
+  var parseSearch = (items, langFilter, langs, baseUrl) => {
     const mangas = [];
-    for (const obj of $(".item", "#series-list").toArray()) {
-      const id = $(".item-cover", obj).attr("href")?.replace("/series/", "")?.trim().split("/")[0] ?? "";
-      const title = $(".item-title", obj).text() ?? "";
-      const btcode = $("em", obj).attr("data-lang") ?? "en,en_us";
+    if (!items || items.length === 0) return mangas;
+    for (const obj of items) {
+      const mangaData = obj.data;
+      if (!mangaData) continue;
+      const id = mangaData.urlPath ?? "";
+      const title = mangaData.name ?? "";
+      const btcode = mangaData.tranLang ?? "en,en_us";
       const lang = btcode ? BTLanguages.getLangCode(btcode) : "\u{1F1EC}\u{1F1E7}";
-      const subtitle = lang + " " + $(".visited", obj).text().trim();
-      const image = $("img", obj).attr("src")?.replace("https://k", "https://n") ?? "";
+      const subtitle = lang + " " + mangaData.chapterNode_up_to.data.dname;
+      const image = baseUrl + mangaData.urlCover600;
       if (!id || !title) continue;
       if (langFilter && !langs.includes(btcode)) continue;
       mangas.push(App.createPartialSourceManga({
@@ -2375,9 +2368,6 @@ var _Sources = (() => {
       }));
     }
     return mangas;
-  };
-  var parseThumbnailUrl = ($) => {
-    return $("div.attr-cover img").attr("src") ?? "";
   };
   var isLastPage = ($) => {
     return $(".page-item").last().hasClass("disabled");
@@ -2629,19 +2619,20 @@ var _Sources = (() => {
         throw new Error("All domains failed");
       }
     }
-    async networkRequestStatic(path, param) {
+    async networkRequestStatic(path, param, data) {
       const domain = await this.stateManager.retrieve("selected_domain") ?? BATO_DOMAIN_DEFAULT;
       try {
         const request = App.createRequest({
           url: `${domain}${path}${param ? param : ""}`,
-          method: "GET"
+          method: "GET",
+          data: data ? data : void 0
         });
         return await this.requestManager.schedule(request, 1);
       } catch (error) {
         throw new Error(`Static domain request failed: ${error?.message || String(error)}`);
       }
     }
-    async networkRequestDynamic(path, param) {
+    async networkRequestDynamic(path, param, data) {
       const cachedDomain = await this.stateManager.retrieve("dynamic_domain");
       if (!cachedDomain || cachedDomain === null) {
         let runCount = 0;
@@ -2711,16 +2702,16 @@ var _Sources = (() => {
         }
       }
     }
-    async networkRequest(path, param) {
+    async networkRequest(path, param, data) {
       const isDynamic = await this.stateManager.retrieve("is_dynamic_domain") ?? false;
       if (!isDynamic) {
         await this.stateManager.store(
           "dynamic_domain",
           await this.stateManager.retrieve("selected_domain") ?? BATO_DOMAIN_DEFAULT
         );
-        return await this.networkRequestStatic(path, param);
+        return await this.networkRequestStatic(path, param, data);
       }
-      return await this.networkRequestDynamic(path, param);
+      return await this.networkRequestDynamic(path, param, data);
     }
     async getSourceMenu() {
       return Promise.resolve(
@@ -2796,34 +2787,91 @@ var _Sources = (() => {
     }
     async getSearchResults(query, metadata) {
       const page = metadata?.page ?? 1;
-      let path;
-      if (query.title) {
-        path = `/search?word=${encodeURI(
-          query.title ?? ""
-        )}&page=${page}`;
-      } else {
-        path = `/browse?genres=${query?.includedTags?.map((x) => x.id)[0]}&page=${page}`;
-      }
+      let path = `/v4x-search?word=${encodeURI(
+        query.title ?? ""
+      )}&page=${page}`;
       const langSearchFilter = await this.stateManager.retrieve("language_search_filter") ?? false;
       const langs = await this.stateManager.retrieve("languages") ?? BTLanguages.getDefault();
-      const response = await this.networkRequest(path);
+      let response = await this.networkRequest(path);
       const $ = this.cheerio.load(response.data);
-      const manga = parseSearch($, langSearchFilter, langs);
-      metadata = !isLastPage($) ? { page: page + 1 } : void 0;
+      path = "/ap2";
+      const data = {
+        query: `query get_search_comic($select: Search_Comic_Select) {
+                get_search_comic(
+                  select: $select
+                ) {
+                  req_page req_size req_word
+                  new_page
+                  paging { 
+              total pages page init size skip limit prev next
+             }
+                  items {
+                    id data {
+                      id dbStatus isPublic name
+                      origLang tranLang
+                      urlPath urlCover600 urlCoverOri
+                      genres altNames authors artists
+                      is_hot is_new sfw_result
+                      score_val follows reviews comments_total
+                      chapterNode_up_to {
+                        id data {
+                          id dateCreate
+                          dbStatus isFinal sfw_result
+                          dname urlPath is_new
+                          userId userNode {
+                            id data {
+                              id name uniq avatarUrl urlPath
+                            }
+                          }
+                        }
+                      }
+                    }
+                    sser_follow
+                    sser_lastReadChap {
+                      date chapterNode {
+                        id data {
+                          id dbStatus isFinal sfw_result
+                          dname urlPath is_new
+                          userId userNode {
+                            id data {
+                              id name uniq avatarUrl urlPath
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }`,
+        variables: {
+          select: {
+            word: query.title ?? "",
+            sortby: null,
+            page,
+            size: 30
+          }
+        }
+      };
+      response = await this.networkRequest(path, void 0, data);
+      console.log(`[BatoTo-SEARCHDATA] ${response.data?.toString()}`);
+      const resData = JSON.parse(response.data ? response.data : "{get_search_comic: {}, items: []}");
+      const tmpDomain = await this.stateManager.retrieve("selected_domain");
+      const manga = parseSearch(resData.items, langSearchFilter, langs, tmpDomain ?? BATO_DOMAIN_DEFAULT);
+      resData?.get_search_comic.paging.total === page ? { page: page + 1 } : void 0;
       return App.createPagedResults({
         results: manga,
         metadata
       });
     }
-    async getSearchTags() {
-      return parseTags();
-    }
-    async getThumbnailUrl(mangaId) {
-      const response = await this.networkRequest(`/title/${mangaId}`);
-      this.CloudFlareError(response.status);
-      const $ = this.cheerio.load(response.data);
-      return parseThumbnailUrl($);
-    }
+    // async getSearchTags(): Promise<TagSection[]> {
+    //     return parseTags()
+    // }
+    // async getThumbnailUrl(mangaId: string): Promise<string> {
+    //     const response = await this.networkRequest(`/title/${mangaId}`)
+    //     this.CloudFlareError(response.status)
+    //     const $ = this.cheerio.load(response.data as string)
+    //     return parseThumbnailUrl($)
+    // }
     CloudFlareError(status) {
       if (status == 503 || status == 403) {
         throw new Error(
@@ -2842,7 +2890,7 @@ Please go to the homepage of <${_BatoTo.name}> and press the cloud icon.`
         tmpDomain = await this.stateManager.retrieve("dynamic_domain");
       }
       const domain = tmpDomain ? typeof tmpDomain === "string" ? tmpDomain : tmpDomain[0] : BATO_DOMAIN_DEFAULT;
-      return App.createRequest({
+      const req = App.createRequest({
         url: domain ?? BATO_DOMAIN_DEFAULT,
         method: "GET",
         headers: {
@@ -2850,6 +2898,9 @@ Please go to the homepage of <${_BatoTo.name}> and press the cloud icon.`
           "user-agent": await this.requestManager.getDefaultUserAgent()
         }
       });
+      console.log(`[BatoTo] Generated Cloudflare bypass request for domain: ${domain}`);
+      console.log(`[BatoTo-Request] ${JSON.stringify(req)}`);
+      return req;
     }
   };
   return __toCommonJS(BatoTo_exports);
