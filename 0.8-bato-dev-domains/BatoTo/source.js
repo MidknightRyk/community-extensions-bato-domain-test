@@ -2157,6 +2157,93 @@ var _Sources = (() => {
     }
   };
   var BTDomains = new BTDomainsClass();
+  var BTQueriesClass = class {
+    constructor() {
+      this.Queries = [
+        {
+          name: "search",
+          query: `
+            query get_search_comic($select: Search_Comic_Select) {
+                get_search_comic(
+                    select: $select
+                ) {
+                    req_page req_size req_word
+                    new_page
+                    paging { 
+                        next
+                    }
+                    items {
+                        data {
+                            name
+                            origLang tranLang
+                            urlPath urlCover600 urlCoverOri
+                            genres altNames authors artists
+                            chapterNode_up_to {
+                                data {
+                                    dname urlPath
+                                }
+                            }
+                        }
+                    }
+                }
+            }`
+        },
+        { name: "viewMore", query: `
+            query get_latestReleases($select: LatestReleases_Select) {
+                get_latestReleases(
+                    select: $select
+                ) {
+                    paging { 
+                        next
+                    }
+                    items {
+                        data {
+                            name
+                            origLang tranLang
+                            urlPath urlCover600 urlCoverOri
+                            chapterNode_up_to {
+                                data {
+                                    dname urlPath
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            ` },
+        { name: "mangaDetails", query: `
+                query get_comic($select: LatestReleases_Select) {
+                    get_latestReleases(
+                        select: $select
+                    ) {
+                        paging { 
+                            next
+                        }
+                        items {
+                            data {
+                                name
+                                origLang tranLang
+                                urlPath urlCover600 urlCoverOri
+                                chapterNode_up_to {
+                                    data {
+                                        dname urlPath
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                ` }
+      ];
+    }
+    getBTQueryList() {
+      return this.Queries.map((Query) => Query.query);
+    }
+    getQuery(name) {
+      return this.Queries.filter((Query) => Query.name == name)[0]?.query ?? "Unknown";
+    }
+  };
+  var BTQueries = new BTQueriesClass();
 
   // src/BatoTo/BatoToParserV4.ts
   var entities = require_lib2();
@@ -2324,18 +2411,20 @@ var _Sources = (() => {
     latestSection.items = latestSection_Array;
     sectionCallback(latestSection);
   };
-  var parseViewMore = ($, baseURL) => {
+  var parseViewMore = (items, langFilter, langs, baseURL) => {
     const manga = [];
     const collectedIds = [];
-    for (const obj of $('[q\\:key="Fc_9"]').toArray()) {
-      const subDiv = $('[q\\:key="w7_8"]', obj).first();
-      const id = $("a", $('[q\\:key="Jg_4"]', obj)).attr("href")?.replace("/title/", "").trim().split("/")[0] ?? "";
-      const image = baseURL + $("img", obj).first().attr("src");
-      const title = $("img", obj).first().attr("title")?.trim() ?? "";
-      const btcode = $("em", obj).attr("data-lang");
+    for (const obj of items) {
+      const mangaData = obj.data;
+      if (!mangaData) continue;
+      const id = mangaData.urlPath.replace("/title/", "");
+      const image = baseURL + mangaData.urlCover600;
+      const title = mangaData.name;
+      const btcode = mangaData.tranLang === "en" ? "en,en_us" : mangaData.tranLang;
       const lang = btcode ? BTLanguages.getLangCode(btcode) : "\u{1F1EC}\u{1F1E7}";
-      const subtitle = lang + " " + $("a", subDiv).text().trim();
+      const subtitle = lang + " " + mangaData.chapterNode_up_to.data.dname;
       if (!id || !title || collectedIds.includes(id)) continue;
+      if (langFilter && !langs.includes(btcode)) continue;
       manga.push(App.createPartialSourceManga({
         image,
         title: decodeHTMLEntity(title),
@@ -2346,15 +2435,25 @@ var _Sources = (() => {
     }
     return manga;
   };
+  var parseTags = () => {
+    const arrayTags = [];
+    for (const label of BTGenres.getGenresList()) {
+      const id = encodeURI(BTGenres.getParam(label) ?? label);
+      if (!id || !label) continue;
+      arrayTags.push({ id, label });
+    }
+    const tagSections = [App.createTagSection({ id: "0", label: "genres", tags: arrayTags.map((x) => App.createTag(x)) })];
+    return tagSections;
+  };
   var parseSearch = (items, langFilter, langs, baseUrl) => {
     const mangas = [];
     if (!items || items.length === 0) return mangas;
     for (const obj of items) {
       const mangaData = obj.data;
       if (!mangaData) continue;
-      const id = mangaData.urlPath ?? "";
-      const title = mangaData.name ?? "";
-      const btcode = mangaData.tranLang ?? "en,en_us";
+      const id = mangaData.urlPath.replace("/title/", "");
+      const title = mangaData.name;
+      const btcode = mangaData.tranLang === "en" ? "en,en_us" : mangaData.tranLang;
       const lang = btcode ? BTLanguages.getLangCode(btcode) : "\u{1F1EC}\u{1F1E7}";
       const subtitle = lang + " " + mangaData.chapterNode_up_to.data.dname;
       const image = baseUrl + mangaData.urlCover600;
@@ -2368,9 +2467,6 @@ var _Sources = (() => {
       }));
     }
     return mangas;
-  };
-  var isLastPage = ($) => {
-    return $(".page-item").last().hasClass("disabled");
   };
   var decodeHTMLEntity = (str) => {
     return entities.decodeHTML(str);
@@ -2442,9 +2538,6 @@ var _Sources = (() => {
   var getSelectedDomain = async (stateManager) => {
     return await stateManager.retrieve("selected_domain") ?? BTDomains.getDefault();
   };
-  var getDynamicDomainSwitch = async (stateManager) => {
-    return await stateManager.retrieve("is_dynamic_domain") ?? false;
-  };
   var domainSettings = (stateManager) => {
     return App.createDUINavigationButton({
       id: "domain_settings",
@@ -2471,17 +2564,6 @@ var _Sources = (() => {
                   }
                 }),
                 allowsMultiselect: false
-              }),
-              App.createDUISwitch({
-                id: "is_dynamic_domain",
-                label: "Enable Dynamic Domain Selection",
-                value: App.createDUIBinding({
-                  get: () => getDynamicDomainSwitch(stateManager),
-                  set: async (newValue) => await stateManager.store(
-                    "is_dynamic_domain",
-                    newValue
-                  )
-                })
               })
             ]
           })
@@ -2498,8 +2580,7 @@ var _Sources = (() => {
           stateManager.store("languages", BTLanguages.getDefault()),
           stateManager.store("language_home_filter", false),
           stateManager.store("language_search_filter", false),
-          stateManager.store("selected_domain", BTDomains.getDefault()),
-          stateManager.store("is_dynamic_domain", false)
+          stateManager.store("selected_domain", BTDomains.getDefault())
         ]);
       }
     });
@@ -2539,14 +2620,10 @@ var _Sources = (() => {
               ...request.headers ?? {},
               ...{
                 referer: `${selectedDomain ?? BATO_DOMAIN_DEFAULT}/`,
+                origin: selectedDomain ?? BATO_DOMAIN_DEFAULT,
                 "user-agent": await this.requestManager.getDefaultUserAgent()
               }
             };
-            if (request.url.includes("mangaId=")) {
-              const mangaId = request.url.replace("mangaId=", "");
-              if (mangaId)
-                request.url = await this.getThumbnailUrl(mangaId);
-            }
             return request;
           },
           interceptResponse: async (response) => {
@@ -2557,161 +2634,33 @@ var _Sources = (() => {
         }
       });
     }
-    async domainRace(path, param, isFirstAttempt = true) {
-      const domains = BTDomains["Domains"];
-      const attemptPromises = domains.map(async (domainObj) => {
-        const domain = domainObj.url;
-        const domainStart = Date.now();
-        const cloudflareDomains = [];
-        try {
-          console.log(`[TESTLOG-DOMAINRACE-TIMING] Starting request to ${domain}`);
-          const request = App.createRequest({
-            url: `${domain}${!isFirstAttempt ? path : "/"}`,
-            method: "GET",
-            param: !isFirstAttempt ? param : void 0
-          });
-          const response = await this.requestManager.schedule(request, 1);
-          if (response.status !== 200) {
-            if (response.status == 503 || response.status == 403) {
-              cloudflareDomains.push(domain);
-            }
-            throw new Error(`Request failed with status ${response.status}: ${response.headers}`);
-          }
-          const domainTime = Date.now() - domainStart;
-          console.log(`[TESTLOG-DOMAINRACE-TIMING] Domain ${domain} succeeded in ${domainTime}ms with status ${response.status}`);
-          return isFirstAttempt ? { domain, domainTime } : { domain, domainTime, response };
-        } catch (error) {
-          const domainTime = Date.now() - domainStart;
-          console.log(`[TESTLOG-DOMAINRACE-TIMING] Domain ${domain} failed after ${domainTime}ms`);
-          switch (true) {
-            case error?.message?.includes("403"):
-            case error?.message?.includes("Cloudflare"):
-              console.log(`[TESTLOG-DOMAINRACE-CLOUDFLARE] ${domain} - Cloudflare challenge detected`);
-              break;
-            case error?.message?.includes("timeout"):
-            case error?.message?.includes("timed out"):
-              console.log(`[TESTLOG-DOMAINRACE-TIMEOUT] ${domain} - Request timeout after ${domainTime}ms`);
-              break;
-            case error?.message?.includes("ECONNREFUSED"):
-              console.log(`[TESTLOG-DOMAINRACE-CONNECTION] ${domain} - Connection refused`);
-              break;
-            case error?.message?.includes("ENOTFOUND"):
-              console.log(`[TESTLOG-DOMAINRACE-DNS] ${domain} - DNS resolution failed`);
-              break;
-            default:
-              console.log(`[TESTLOG-DOMAINRACE-ERROR] ${domain} - Error type: ${error?.name || "Unknown"}`);
-              console.log(`[TESTLOG-DOMAINRACE-ERROR] ${domain} - Error message: ${error?.message || String(error)}`);
-              break;
-          }
-          return { domain, domainTime: -1 };
-        }
-      });
-      try {
-        if (isFirstAttempt) {
-          const raceResults = await Promise.all(attemptPromises);
-          return raceResults;
-        }
-        const fastestResponse = await Promise.any(attemptPromises);
-        return [fastestResponse];
-      } catch (aggregateError) {
-        console.log("[TESTLOG-DOMAINRACE-ERROR] All mirror domains failed");
-        console.log(`[TESTLOG-DOMAINRACE-ERROR] Reasons: ${aggregateError?.errors?.map((e) => e.message).join(", ") || "Unknown"}`);
-        throw new Error("All domains failed");
-      }
-    }
-    async networkRequestStatic(path, param, data) {
+    async networkRequestPost(apiQuery, apiVariables) {
       const domain = await this.stateManager.retrieve("selected_domain") ?? BATO_DOMAIN_DEFAULT;
       try {
         const request = App.createRequest({
-          url: `${domain}${path}${param ? param : ""}`,
-          method: "GET",
-          data: data ? data : void 0
+          url: `${domain}/ap2/`,
+          method: "POST",
+          headers: {
+            "content-type": "application/json"
+          },
+          data: { query: apiQuery, variables: apiVariables }
         });
         return await this.requestManager.schedule(request, 1);
       } catch (error) {
-        throw new Error(`Static domain request failed: ${error?.message || String(error)}`);
+        throw new Error(`POST request failed: ${error?.message || String(error)}`);
       }
     }
-    async networkRequestDynamic(path, param, data) {
-      const cachedDomain = await this.stateManager.retrieve("dynamic_domain");
-      if (!cachedDomain || cachedDomain === null) {
-        let runCount = 0;
-        let retryAttemptCount = 0;
-        const retryAttemptMax = 3;
-        const totalRaceResults = [];
-        while (runCount < 3) {
-          try {
-            const raceResults = await this.domainRace("/");
-            raceResults.forEach((result) => {
-              const existing = totalRaceResults.find((r) => r.domain === result.domain);
-              if (existing) {
-                existing.domainTime.push(result.domainTime);
-              } else {
-                totalRaceResults.push({ domain: result.domain, domainTime: [result.domainTime] });
-              }
-            });
-            runCount++;
-            retryAttemptCount = 0;
-          } catch (error) {
-            console.log(`[TESTLOG-DOMAINRACE-ERROR] Domain race attempt ${runCount + 1} failed with error: ${error?.message || String(error)}`);
-            if (retryAttemptCount < retryAttemptMax) {
-              console.log(`[TESTLOG-DOMAINRACE-INFO] Retrying domain race attempt ${runCount + 1}`);
-              retryAttemptCount++;
-            }
-            break;
-          }
-        }
-        if (totalRaceResults.length === 0) {
-          throw new Error("All domains failed during race attempts");
-        }
-        const medianTimes = totalRaceResults.map((result) => {
-          return {
-            domain: result.domain,
-            medianTime: result.domainTime.filter((t) => t >= 0).sort((a, b) => a - b)[Math.floor(result.domainTime.filter((t) => t >= 0).length / 2)] || Number.MAX_SAFE_INTEGER
-          };
-        });
-        medianTimes.sort((a, b) => a.medianTime - b.medianTime);
-        const bestDomain = medianTimes[0]?.domain;
-        console.log(`[TESTLOG-NETWORKREQUESTDYNAMIC-INFO] Selected best domain: ${bestDomain} with median time: ${medianTimes[0]?.medianTime}ms`);
-        await this.stateManager.store("dynamic_domain", bestDomain);
-      }
-      const cachedReqStart = Date.now();
+    async networkRequestGet(path, param = "") {
+      const domain = await this.stateManager.retrieve("selected_domain") ?? BATO_DOMAIN_DEFAULT;
       try {
-        console.log(`[TESTLOG-NETWORKREQUESTDYNAMIC-TIMING] Starting request to ${cachedDomain}`);
         const request = App.createRequest({
-          url: `${cachedDomain}${path}`,
-          method: "GET",
-          param
+          url: `${domain}${path}${param}`,
+          method: "GET"
         });
-        const response = await this.requestManager.schedule(request, 1);
-        const cachedReqTime = Date.now() - cachedReqStart;
-        console.log(`[TESTLOG-NETWORKREQUESTDYNAMIC-TIMING] Stored Domain ${cachedDomain} succeeded after ${cachedReqTime}ms`);
-        return response;
+        return await this.requestManager.schedule(request, 1);
       } catch (error) {
-        const cachedReqTime = Date.now() - cachedReqStart;
-        console.log(`[TESTLOG-NETWORKREQUESTDYNAMIC-TIMING] Stored Domain ${cachedDomain} failed after ${cachedReqTime}ms`);
-        console.log(`[TESTLOG-NETWORKREQUESTDYNAMIC-ERROR] ${cachedDomain} - Error type: ${error?.name || "Unknown"}`);
-        console.log(`[TESTLOG-NETWORKREQUESTDYNAMIC-ERROR] ${cachedDomain} - Error message: ${error?.message || String(error)}`);
-        try {
-          const raceResult = (await this.domainRace(path, param, false))[0];
-          console.log(`[TESTLOG-NETWORKREQUESTDYNAMIC-TIMING] New Domain ${raceResult?.domain} succeeded after ${raceResult?.domainTime}ms`);
-          await this.stateManager.store("dynamic_domain", raceResult?.domain);
-          return raceResult?.response;
-        } catch (error2) {
-          throw new Error("All domains failed");
-        }
+        throw new Error(`GET request failed: ${error?.message || String(error)}`);
       }
-    }
-    async networkRequest(path, param, data) {
-      const isDynamic = await this.stateManager.retrieve("is_dynamic_domain") ?? false;
-      if (!isDynamic) {
-        await this.stateManager.store(
-          "dynamic_domain",
-          await this.stateManager.retrieve("selected_domain") ?? BATO_DOMAIN_DEFAULT
-        );
-        return await this.networkRequestStatic(path, param, data);
-      }
-      return await this.networkRequestDynamic(path, param, data);
     }
     async getSourceMenu() {
       return Promise.resolve(
@@ -2732,54 +2681,76 @@ var _Sources = (() => {
     }
     async getMangaDetails(mangaId) {
       const tmpDomain = await this.stateManager.retrieve("selected_domain");
-      const response = await this.networkRequest(`/title/${mangaId}`);
+      const response = await this.networkRequestGet(`/title/${mangaId}`);
       this.CloudFlareError(response.status);
       const $ = this.cheerio.load(response.data);
       return parseMangaDetails($, tmpDomain ?? BATO_DOMAIN_DEFAULT, mangaId);
     }
     async getChapters(mangaId) {
-      const response = await this.networkRequest(`/title/${mangaId}`);
+      const response = await this.networkRequestGet(`/title/${mangaId}`);
       this.CloudFlareError(response.status);
       const $ = this.cheerio.load(response.data);
       return parseChapterList($, mangaId);
     }
     async getChapterDetails(mangaId, chapterId) {
-      const response = await this.networkRequest(`/title/${mangaId}/${chapterId}`);
+      const response = await this.networkRequestGet(`/title/${mangaId}/${chapterId}`);
       this.CloudFlareError(response.status);
       const $ = this.cheerio.load(response.data);
       return parseChapterDetails($, mangaId, chapterId);
     }
     async getHomePageSections(sectionCallback) {
       const tmpDomain = await this.stateManager.retrieve("selected_domain");
-      const response = await this.networkRequest("/");
+      const response = await this.networkRequestGet("/");
       this.CloudFlareError(response.status);
       const $ = this.cheerio.load(response.data);
       parseHomeSections($, tmpDomain ?? BATO_DOMAIN_DEFAULT, sectionCallback);
     }
     async getViewMoreItems(homepageSectionId, metadata) {
       const page = metadata?.page ?? 1;
-      let param = "";
+      let queryString = "";
+      let variable;
       switch (homepageSectionId) {
         case "popular_updates":
-          param = `?sortby=field_score&page=${page}`;
+          queryString = BTQueries.getQuery("viewMore");
+          variable = {
+            select: {
+              where: "popular",
+              init: 0,
+              size: 32,
+              page
+            }
+          };
           break;
         case "latest_releases":
-          param = `?sortby=field_update&page=${page}`;
+          queryString = BTQueries.getQuery("viewMore");
+          variable = {
+            select: {
+              where: "release",
+              init: 0,
+              size: 32,
+              page
+            }
+          };
           break;
         default:
           throw new Error(
             "Requested to getViewMoreItems for a section ID which doesn't exist"
           );
       }
-      const langHomeFilter = await this.stateManager.retrieve("language_home_filter") ?? false;
+      const langSearchFilter = await this.stateManager.retrieve("language_search_filter") ?? false;
       const langs = await this.stateManager.retrieve("languages") ?? BTLanguages.getDefault();
-      param += langHomeFilter ? `&langs=${langs.join(",")}` : "";
-      const tmpDomain = await this.stateManager.retrieve("selected_domain");
-      const response = await this.networkRequest("/comics", param);
+      const response = await this.networkRequestPost(queryString, variable);
       this.CloudFlareError(response.status);
-      const $ = this.cheerio.load(response.data);
-      const manga = parseViewMore($, tmpDomain ?? BATO_DOMAIN_DEFAULT);
-      metadata = !isLastPage($) ? { page: page + 1 } : void 0;
+      if (!response.data) {
+        return App.createPagedResults({
+          results: [],
+          metadata: void 0
+        });
+      }
+      const resData = JSON.parse(response.data).data;
+      const tmpDomain = await this.stateManager.retrieve("selected_domain");
+      const manga = parseViewMore(resData.get_latestReleases.items, langSearchFilter, langs, tmpDomain ?? BATO_DOMAIN_DEFAULT);
+      metadata = resData.get_latestReleases.paging.next != 0 ? { page: page + 1 } : void 0;
       return App.createPagedResults({
         results: manga,
         metadata
@@ -2787,85 +2758,36 @@ var _Sources = (() => {
     }
     async getSearchResults(query, metadata) {
       const page = metadata?.page ?? 1;
-      let path = `/v4x-search?word=${encodeURI(
-        query.title ?? ""
-      )}&page=${page}`;
       const langSearchFilter = await this.stateManager.retrieve("language_search_filter") ?? false;
       const langs = await this.stateManager.retrieve("languages") ?? BTLanguages.getDefault();
-      let response = await this.networkRequest(path);
-      const $ = this.cheerio.load(response.data);
-      path = "/ap2";
-      const data = {
-        query: `query get_search_comic($select: Search_Comic_Select) {
-                get_search_comic(
-                  select: $select
-                ) {
-                  req_page req_size req_word
-                  new_page
-                  paging { 
-              total pages page init size skip limit prev next
-             }
-                  items {
-                    id data {
-                      id dbStatus isPublic name
-                      origLang tranLang
-                      urlPath urlCover600 urlCoverOri
-                      genres altNames authors artists
-                      is_hot is_new sfw_result
-                      score_val follows reviews comments_total
-                      chapterNode_up_to {
-                        id data {
-                          id dateCreate
-                          dbStatus isFinal sfw_result
-                          dname urlPath is_new
-                          userId userNode {
-                            id data {
-                              id name uniq avatarUrl urlPath
-                            }
-                          }
-                        }
-                      }
-                    }
-                    sser_follow
-                    sser_lastReadChap {
-                      date chapterNode {
-                        id data {
-                          id dbStatus isFinal sfw_result
-                          dname urlPath is_new
-                          userId userNode {
-                            id data {
-                              id name uniq avatarUrl urlPath
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }`,
-        variables: {
-          select: {
-            word: query.title ?? "",
-            sortby: null,
-            page,
-            size: 30
-          }
+      const queryString = BTQueries.getQuery("search");
+      const variable = {
+        select: {
+          word: query.title ?? "",
+          size: 32,
+          page,
+          sortby: null
         }
       };
-      response = await this.networkRequest(path, void 0, data);
-      console.log(`[BatoTo-SEARCHDATA] ${response.data?.toString()}`);
-      const resData = JSON.parse(response.data ? response.data : "{get_search_comic: {}, items: []}");
+      const response = await this.networkRequestPost(queryString, variable);
+      if (!response.data) {
+        return App.createPagedResults({
+          results: [],
+          metadata: void 0
+        });
+      }
+      const resData = JSON.parse(response.data).data;
       const tmpDomain = await this.stateManager.retrieve("selected_domain");
-      const manga = parseSearch(resData.items, langSearchFilter, langs, tmpDomain ?? BATO_DOMAIN_DEFAULT);
-      resData?.get_search_comic.paging.total === page ? { page: page + 1 } : void 0;
+      const manga = parseSearch(resData.get_search_comic.items, langSearchFilter, langs, tmpDomain ?? BATO_DOMAIN_DEFAULT);
+      metadata = resData.get_search_comic.paging.next != 0 ? { page: page + 1 } : void 0;
       return App.createPagedResults({
         results: manga,
         metadata
       });
     }
-    // async getSearchTags(): Promise<TagSection[]> {
-    //     return parseTags()
-    // }
+    async getSearchTags() {
+      return parseTags();
+    }
     // async getThumbnailUrl(mangaId: string): Promise<string> {
     //     const response = await this.networkRequest(`/title/${mangaId}`)
     //     this.CloudFlareError(response.status)
@@ -2875,21 +2797,13 @@ var _Sources = (() => {
     CloudFlareError(status) {
       if (status == 503 || status == 403) {
         throw new Error(
-          `CLOUDFLARE BYPASS ERROR:
-Please go to the homepage of <${_BatoTo.name}> and press the cloud icon.`
+          `CLOUDFLARE BYPASS ERROR:Please go to the homepage of <${_BatoTo.name}> and press the cloud icon.`
         );
       }
     }
     async getCloudflareBypassRequestAsync() {
-      let tmpDomain;
-      const isDynamic = await this.stateManager.retrieve("is_dynamic_domain") ?? false;
-      if (!isDynamic) {
-        tmpDomain = await this.stateManager.retrieve("selected_domain");
-      } else {
-        await this.networkRequest("/");
-        tmpDomain = await this.stateManager.retrieve("dynamic_domain");
-      }
-      const domain = tmpDomain ? typeof tmpDomain === "string" ? tmpDomain : tmpDomain[0] : BATO_DOMAIN_DEFAULT;
+      const tmpDomain = await this.stateManager.retrieve("selected_domain") ?? BATO_DOMAIN_DEFAULT;
+      const domain = typeof tmpDomain === "string" ? tmpDomain : tmpDomain[0];
       const req = App.createRequest({
         url: domain ?? BATO_DOMAIN_DEFAULT,
         method: "GET",
