@@ -21,12 +21,12 @@ export const parseMangaDetails = ($: CheerioStatic, baseURL: string, mangaId: st
     const imgDiv = $('[q\\:key="fU_13"]').first()
     const titles: string[] = []
 
-    titles.push($('a', imgDiv).first().text().trim() ?? '')
+    titles.push(decodeHTMLEntity($('a', imgDiv).first().text().trim() ?? ''))
     const altTitleArray = $('[q\\:key="k6_1"]', $('[q\\:key="k6_2"]').first()).next('span').toArray()
     const altTitles = altTitleArray.map((e: CheerioElement) => $(e).text().trim()).filter((title: string) => title !== '/')
     for (const title of altTitles) {
         console.log('PUSHING TITLE: ' + title)
-        titles.push(title)
+        titles.push(decodeHTMLEntity(title))
     }
 
     const descriptionArray = $('[q\\:key="0a_9"] > .limit-html').toArray().map((e: CheerioElement) => $(e).text().trim())

@@ -394,7 +394,7 @@ implements
 
         // Regular search
         if (query.title) {
-            path = `/search?word=${encodeURI(
+            path = `/v4x-search?word=${encodeURI(
                 query.title ?? ''
             )}&page=${page}`
             // Tag Search
