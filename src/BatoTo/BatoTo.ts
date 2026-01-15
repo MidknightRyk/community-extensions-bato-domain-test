@@ -34,7 +34,8 @@ import {
 
 import { BTLanguages,
     BTDomains,
-    Metadata } from './BatoToHelper'
+    Metadata, 
+    BTQueries} from './BatoToHelper'
 
 import { languageSettings,
     domainSettings,
@@ -91,11 +92,6 @@ implements
                     await this.requestManager.getDefaultUserAgent()
                     }
                 }
-                if (request.url.includes('mangaId=')) {
-                    const mangaId = request.url.replace('mangaId=', '')
-                    if (mangaId)
-                        request.url = await this.getThumbnailUrl(mangaId)
-                }
                 return request
             },
             interceptResponse: async (
@@ -108,19 +104,37 @@ implements
         }
     })
 
-    async networkRequest(path: string, param?: string, data?: any, method?: string): Promise<Response> {
+    async networkRequestPost(apiQuery: string, apiVariables: any): Promise<Response> {
         const domain = await this.stateManager.retrieve('selected_domain') ?? BATO_DOMAIN_DEFAULT
 
         try {
             const request = App.createRequest({
-                url: `${domain}${path}${param ? param : ''}`,
-                method: method ?? 'GET',
-                data: data ? data : undefined
+                url: `${domain}/ap2/`,
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json'
+                },
+                data: { query: apiQuery, variables: apiVariables }
             })
     
             return await this.requestManager.schedule(request, 1)}
         catch (error: any) {
-            throw new Error(`Static domain request failed: ${error?.message || String(error)}`)
+            throw new Error(`POST request failed: ${error?.message || String(error)}`)
+        }
+    }
+
+    async networkRequestGet(path: string, param = ''): Promise<Response> {
+        const domain = await this.stateManager.retrieve('selected_domain') ?? BATO_DOMAIN_DEFAULT
+
+        try {
+            const request = App.createRequest({
+                url: `${domain}${path}${param}`,
+                method: 'GET'
+            })
+    
+            return await this.requestManager.schedule(request, 1)}
+        catch (error: any) {
+            throw new Error(`GET request failed: ${error?.message || String(error)}`)
         }
     }
 
@@ -145,14 +159,14 @@ implements
 
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
         const tmpDomain = await this.stateManager.retrieve('selected_domain')
-        const response = await this.networkRequest(`/title/${mangaId}`)
+        const response = await this.networkRequestGet(`/title/${mangaId}`)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         return parseMangaDetails($, tmpDomain ?? BATO_DOMAIN_DEFAULT, mangaId)
     }
 
     async getChapters(mangaId: string): Promise<Chapter[]> {
-        const response = await this.networkRequest(`/title/${mangaId}`)
+        const response = await this.networkRequestGet(`/title/${mangaId}`)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         return parseChapterList($, mangaId)
@@ -162,7 +176,7 @@ implements
         mangaId: string,
         chapterId: string
     ): Promise<ChapterDetails> {
-        const response = await this.networkRequest(`/title/${mangaId}/${chapterId}`)
+        const response = await this.networkRequestGet(`/title/${mangaId}/${chapterId}`)
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         return parseChapterDetails($, mangaId, chapterId)
@@ -172,7 +186,7 @@ implements
         sectionCallback: (section: HomeSection) => void
     ): Promise<void> {
         const tmpDomain = await this.stateManager.retrieve('selected_domain')
-        const response = await this.networkRequest('/')
+        const response = await this.networkRequestGet('/')
         this.CloudFlareError(response.status)
         const $ = this.cheerio.load(response.data as string)
         parseHomeSections($, tmpDomain ?? BATO_DOMAIN_DEFAULT, sectionCallback)
@@ -183,14 +197,31 @@ implements
         metadata: Metadata | undefined
     ): Promise<PagedResults> {
         const page: number = metadata?.page ?? 1
-        let param = ''
+        let queryString = ''
+        let variable
 
         switch (homepageSectionId) {
             case 'popular_updates':
-                param = `?sortby=field_score&page=${page}`
+                queryString = BTQueries.getQuery('viewMore')
+                variable = {
+                    select:{
+                        where: 'popular', 
+                        init: 0, 
+                        size: 32, 
+                        page: page
+                    }
+                }
                 break
             case 'latest_releases':
-                param = `?sortby=field_update&page=${page}`
+                queryString = BTQueries.getQuery('viewMore')
+                variable = {
+                    select:{
+                        where: 'release', 
+                        init: 0, 
+                        size: 32, 
+                        page: page
+                    }
+                }
                 break
             default:
                 throw new Error(
@@ -198,20 +229,20 @@ implements
                 )
         }
 
-        const langHomeFilter: boolean =
-            (await this.stateManager.retrieve('language_home_filter')) ?? false
-        const langs: string[] =
-            (await this.stateManager.retrieve('languages')) ??
-            BTLanguages.getDefault()
-        param += langHomeFilter ? `&langs=${langs.join(',')}` : ''
-        const tmpDomain = await this.stateManager.retrieve('selected_domain')
+        const response = await this.networkRequestPost(queryString, variable)
 
-        const response = await this.networkRequest('/comics', param)
         this.CloudFlareError(response.status)
-        const $ = this.cheerio.load(response.data as string)
-        const manga = parseViewMore($, tmpDomain ?? BATO_DOMAIN_DEFAULT)
+        if (!response.data) {
+            return App.createPagedResults({
+                results: [],
+                metadata: undefined
+            })
+        }
+        const resData = (JSON.parse(response.data)).data
+        const tmpDomain = await this.stateManager.retrieve('selected_domain')
+        const manga = parseViewMore(resData.get_latestReleases.items, tmpDomain ?? BATO_DOMAIN_DEFAULT)
 
-        metadata = !isLastPage($) ? { page: page + 1 } : undefined
+        metadata = resData.get_latestReleases.paging.next != 0 ? { page: page + 1 } : undefined
         return App.createPagedResults({
             results: manga,
             metadata
@@ -224,11 +255,6 @@ implements
     ): Promise<PagedResults> {
         const page: number = metadata?.page ?? 1
 
-        let path = `/v4x-search?word=${encodeURI(
-            query.title ?? ''
-        )}&page=${page}`
-        
-
         const langSearchFilter: boolean =
             (await this.stateManager.retrieve('language_search_filter')) ??
             false
@@ -236,79 +262,33 @@ implements
             (await this.stateManager.retrieve('languages')) ??
             BTLanguages.getDefault()
 
-        let response = await this.networkRequest(path)
-        const $ = this.cheerio.load(response.data as string)
-        //const scaffold = parseSearch($, langSearchFilter, langs)
+        // Could use language filter in search when V4 API has more than eng
 
-        //get search data
-        path = '/ap2'
-        const data = {
-            query: `query get_search_comic($select: Search_Comic_Select) {
-                get_search_comic(
-                  select: $select
-                ) {
-                  req_page req_size req_word
-                  new_page
-                  paging { 
-              total pages page init size skip limit prev next
-             }
-                  items {
-                    id data {
-                      id dbStatus isPublic name
-                      origLang tranLang
-                      urlPath urlCover600 urlCoverOri
-                      genres altNames authors artists
-                      is_hot is_new sfw_result
-                      score_val follows reviews comments_total
-                      chapterNode_up_to {
-                        id data {
-                          id dateCreate
-                          dbStatus isFinal sfw_result
-                          dname urlPath is_new
-                          userId userNode {
-                            id data {
-                              id name uniq avatarUrl urlPath
-                            }
-                          }
-                        }
-                      }
-                    }
-                    sser_follow
-                    sser_lastReadChap {
-                      date chapterNode {
-                        id data {
-                          id dbStatus isFinal sfw_result
-                          dname urlPath is_new
-                          userId userNode {
-                            id data {
-                              id name uniq avatarUrl urlPath
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }`,
-            variables: {
-                select: {
-                    word: query.title ?? '',
-                    sortby: null,
-                    page: page,
-                    size: 30
-                }
+        const queryString = BTQueries.getQuery('search')
+        const variable ={
+            select:{
+                word:query.title ?? '',
+                size:32,
+                page:page,
+                sortby:null
             }
         }
 
-        response = await this.networkRequest(path, undefined, data, 'POST')
-        //$ = this.cheerio.load(response.data as string)
+        const response = await this.networkRequestPost(queryString, variable)
+
         console.log(`[BatoTo-SEARCHDATA] ${response.data?.toString()}`)
-        const resData = JSON.parse(response.data ? response.data : '{get_search_comic: {}, items: []}')
+        if (!response.data) {
+            return App.createPagedResults({
+                results: [],
+                metadata: undefined
+            })
+        }
+        const resData = JSON.parse(response.data).data
         const tmpDomain = await this.stateManager.retrieve('selected_domain')
-        const manga = parseSearch(resData.items, langSearchFilter, langs, tmpDomain ?? BATO_DOMAIN_DEFAULT)
+        const manga = parseSearch(resData.get_search_comic.items, langSearchFilter, langs, tmpDomain ?? BATO_DOMAIN_DEFAULT)
         
 
-        resData?.get_search_comic.paging.total === page ? { page: page + 1 } : undefined
+        metadata = resData.get_search_comic.paging.next != 0 ? { page: page + 1 } : undefined
         return App.createPagedResults({
             results: manga,
             metadata
@@ -329,15 +309,17 @@ implements
     CloudFlareError(status: number): void {
         if (status == 503 || status == 403) {
             throw new Error(
-                `CLOUDFLARE BYPASS ERROR:\nPlease go to the homepage of <${BatoTo.name}> and press the cloud icon.`
+                `CLOUDFLARE BYPASS ERROR:\
+Please go to the homepage of <${BatoTo.name}> and press the cloud icon.`
             )
         }
     }
 
     async getCloudflareBypassRequestAsync(): Promise<Request> {
 
-        const domain = await this.stateManager.retrieve('selected_domain') ?? BATO_DOMAIN_DEFAULT
+        const tmpDomain = await this.stateManager.retrieve('selected_domain') ?? BATO_DOMAIN_DEFAULT
         
+        const domain = typeof(tmpDomain) === 'string' ? tmpDomain : tmpDomain[0]
 
         const req =  App.createRequest({
             url: domain ?? BATO_DOMAIN_DEFAULT,

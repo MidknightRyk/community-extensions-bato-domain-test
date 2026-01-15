@@ -733,3 +733,95 @@ class BTDomainsClass {
 }
 
 export const BTDomains = new BTDomainsClass()
+
+interface BTQueries {
+    name: string;
+    query: string;
+}
+
+class BTQueriesClass {
+    Queries: BTQueries[] = [
+        { name: 'search', query: `
+            query get_search_comic($select: Search_Comic_Select) {
+                get_search_comic(
+                    select: $select
+                ) {
+                    req_page req_size req_word
+                    new_page
+                    paging { 
+                        next
+                    }
+                    items {
+                        data {
+                            name
+                            origLang tranLang
+                            urlPath urlCover600 urlCoverOri
+                            genres altNames authors artists
+                            chapterNode_up_to {
+                                data {
+                                    dname urlPath
+                                }
+                            }
+                        }
+                    }
+                }
+            }`
+        },
+        { name: 'viewMore', query: `
+            query get_latestReleases($select: LatestReleases_Select) {
+                get_latestReleases(
+                    select: $select
+                ) {
+                    paging { 
+                        next
+                    }
+                    items {
+                        data {
+                            name
+                            origLang tranLang
+                            urlPath urlCover600 urlCoverOri
+                            chapterNode_up_to {
+                                data {
+                                    dname urlPath
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            ` },
+        { name: 'mangaDetails', query: `
+                query get_comic($select: LatestReleases_Select) {
+                    get_latestReleases(
+                        select: $select
+                    ) {
+                        paging { 
+                            next
+                        }
+                        items {
+                            data {
+                                name
+                                origLang tranLang
+                                urlPath urlCover600 urlCoverOri
+                                chapterNode_up_to {
+                                    data {
+                                        dname urlPath
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                ` }
+        
+    ]
+
+    getBTQueryList(): string[] {
+        return this.Queries.map(Query => Query.query)
+    }
+    getQuery(name: string): string {
+        return this.Queries.filter(Query => Query.name == name)[0]?.query ?? 'Unknown'
+    }
+}
+
+export const BTQueries = new BTQueriesClass()

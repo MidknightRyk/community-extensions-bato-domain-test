@@ -214,18 +214,19 @@ export const parseHomeSections = ($: CheerioStatic, baseURL: string, sectionCall
     sectionCallback(latestSection)
 }
 
-export const parseViewMore = ($: CheerioStatic, baseURL: string): PartialSourceManga[] => {
+export const parseViewMore = (items: any[], baseURL: string): PartialSourceManga[] => {
     const manga: PartialSourceManga[] = []
     const collectedIds: string[] = []
 
-    for (const obj of $('[q\\:key="Fc_9"]').toArray()) {
-        const subDiv = $('[q\\:key="w7_8"]', obj).first()
-        const id = $('a', $('[q\\:key="Jg_4"]', obj)).attr('href')?.replace('/title/', '').trim().split('/')[0] ?? ''
-        const image = baseURL +($('img', obj).first().attr('src'))
-        const title = $('img', obj).first().attr('title')?.trim() ?? ''
-        const btcode = $('em', obj).attr('data-lang')
+    for (const obj of items) {
+        const mangaData = obj.data
+        if (!mangaData) continue
+        const id = mangaData.urlPath.replace('/title/', '')
+        const image = baseURL + mangaData.urlCover600
+        const title = mangaData.name
+        const btcode = mangaData.tranLang === 'en' ? 'en,en_us' : mangaData.tranLang
         const lang: string = btcode ? BTLanguages.getLangCode(btcode) : '🇬🇧'
-        const subtitle = lang + ' ' + $('a', subDiv).text().trim()
+        const subtitle = lang + ' ' + mangaData.chapterNode_up_to.data.dname
 
 
         if (!id || !title || collectedIds.includes(id)) continue
@@ -261,9 +262,9 @@ export const parseSearch = (items: any[], langFilter: boolean, langs: string[], 
     for (const obj of items) {
         const mangaData = obj.data
         if (!mangaData) continue
-        const id = mangaData.urlPath ?? ''
-        const title: string = mangaData.name ?? ''
-        const btcode = mangaData.tranLang ?? 'en,en_us'
+        const id = mangaData.urlPath.replace('/title/', '')
+        const title: string = mangaData.name
+        const btcode = mangaData.tranLang === 'en' ? 'en,en_us' : mangaData.tranLang
         const lang: string = btcode ? BTLanguages.getLangCode(btcode) : '🇬🇧'
         const subtitle = lang + ' ' + mangaData.chapterNode_up_to.data.dname
         const image = baseUrl + mangaData.urlCover600
