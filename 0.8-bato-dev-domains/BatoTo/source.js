@@ -2142,8 +2142,12 @@ var _Sources = (() => {
   var BTDomainsClass = class {
     constructor() {
       this.Domains = [
-        { name: "bato.si", url: "https://bato.si", default: true },
-        { name: "bato.ing", url: "https://bato.ing" }
+        { name: "xcat.tv", url: "https://xcat.tv", default: true },
+        { name: "xbat.la", url: "https://xbat.la" },
+        { name: "xbat.si", url: "https://xbat.si" },
+        { name: "xbat.io", url: "https://xbat.io" },
+        { name: "xcat.si", url: "https://xcat.si" },
+        { name: "xbat.mi", url: "https://xbat.mi" }
       ];
     }
     getBTDomainList() {
