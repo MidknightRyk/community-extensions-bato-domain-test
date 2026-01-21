@@ -45,7 +45,7 @@ const BATO_DOMAIN_DEFAULT = BTDomains.getDefault()[0] ?? 'https://bato.si'
 
 export const BatoToInfo: SourceInfo = {
     version: '3.1.7',
-    name: 'BatoTo DevDomain 1.0',
+    name: 'BatoTo DevDomain 1.1',
     // name: 'BatoTo Dev Test 1.5',
     icon: 'icon.png',
     author: 'niclimcy',
